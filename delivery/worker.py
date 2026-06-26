@@ -74,8 +74,32 @@ async def _process(item: DeliveryItem, db: aiosqlite.Connection) -> None:
 
     if send_result.success:
         log.info("SMS sent  [%s] %s", message.platform.value, message.sender.id)
+        await _create_reply_session(message, sms_body, council_name, db)
     else:
         log.error("SMS FAILED [%s] %s: %s", message.platform.value, message.sender.id, send_result.error)
+
+
+async def _create_reply_session(
+    message, sms_body: str, council_name: str | None, db: aiosqlite.Connection
+) -> None:
+    from reply.session import platform_chat_id_for
+    chat_id = platform_chat_id_for(message)
+    await db.execute(
+        """
+        INSERT INTO reply_sessions
+            (message_id, platform, sender_id, sender_name, platform_chat_id, sms_body, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+15 minutes'))
+        """,
+        (
+            str(message.id),
+            message.platform.value,
+            message.sender.id,
+            council_name or message.sender.name,
+            chat_id,
+            sms_body,
+        ),
+    )
+    await db.commit()
 
 
 async def _hold_at_delivery(item: DeliveryItem, db: aiosqlite.Connection) -> None:

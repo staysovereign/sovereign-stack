@@ -82,6 +82,22 @@ CREATE TABLE IF NOT EXISTS delivery_log (
 )
 """
 
+# Reply sessions: maps a delivery to its originating conversation (15-min window)
+_CREATE_REPLY_SESSIONS = """
+CREATE TABLE IF NOT EXISTS reply_sessions (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id       TEXT NOT NULL,
+    platform         TEXT NOT NULL,
+    sender_id        TEXT NOT NULL,
+    sender_name      TEXT,
+    platform_chat_id TEXT NOT NULL,  -- Telegram chat_id / WhatsApp room_id / email / phone
+    sms_body         TEXT NOT NULL,  -- the SMS that was forwarded (for context)
+    created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    expires_at       TEXT NOT NULL,  -- created_at + 15 minutes
+    used             INTEGER NOT NULL DEFAULT 0
+)
+"""
+
 # Messages held at delivery during quiet hours — not dropped, waiting to drain
 _CREATE_DELIVERY_HELD = """
 CREATE TABLE IF NOT EXISTS delivery_held (
@@ -126,6 +142,7 @@ async def init_db() -> None:
         await db.execute(_CREATE_CHRONICLE)
         await db.execute(_CREATE_SETTINGS)
         await db.execute(_CREATE_DELIVERY_LOG)
+        await db.execute(_CREATE_REPLY_SESSIONS)
         await db.execute(_CREATE_DELIVERY_HELD)
         await db.commit()
         await _seed_decrees(db)
