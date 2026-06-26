@@ -3,8 +3,12 @@ services:
   core:
     build: ./core
     env_file: .env
+    environment:
+      - SOVEREIGN_DB_PATH=/data/sovereign.db
     ports:
       - "8000:8000"
+    volumes:
+      - sovereign_data:/data
     restart: unless-stopped
     networks:
       - sovereign
@@ -21,6 +25,9 @@ services:
     restart: unless-stopped
     networks:
       - sovereign
+
+volumes:
+  sovereign_data:
 
 networks:
   sovereign:
