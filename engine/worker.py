@@ -39,7 +39,8 @@ async def run() -> None:
                         message.sender.id,
                         result.reason,
                     )
-                    await delivery_queue.put(message)
+                    from core.delivery_queue import DeliveryItem
+                    await delivery_queue.put(DeliveryItem(message=message, result=result))
                 else:
                     log.debug(
                         "HOLD  [%s] %s — %s",

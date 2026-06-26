@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(rustc --version 2>&1)"
+    ]
+  }
+}
