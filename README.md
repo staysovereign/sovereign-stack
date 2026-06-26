@@ -72,7 +72,7 @@ Seven layers, built in order:
 | 2 | **Urgency Engine** | ✅ Done | Three-tier evaluation: Council → Decrees → Advisor |
 | 3 | **Delivery** | ✅ Done | SMS formatter, quiet hours, Twilio + gammu gateway |
 | 4 | **Reply Routing** | ✅ Done | Dumb phone SMS commands routed back to originating platform |
-| 5 | **The Advisor** | 🔧 Next | Local Ollama behavioral model, learns from your response patterns |
+| 5 | **The Advisor** | ✅ Done | Local Ollama behavioral model, learns from your response patterns |
 | 6 | **The Interface** | ⏳ Planned | Browser-only React UI: Vault, Council, Decrees, Chronicle |
 | 7 | **Deployment** | 🔧 In progress | Docker Compose skeleton exists; full docs pending |
 

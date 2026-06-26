@@ -98,6 +98,63 @@ CREATE TABLE IF NOT EXISTS reply_sessions (
 )
 """
 
+# ── Advisor tables ────────────────────────────────────────────────────────────
+
+# Resolved behavioral signals — the only data the Advisor ever stores about messages
+_CREATE_ADVISOR_SIGNALS = """
+CREATE TABLE IF NOT EXISTS advisor_signals (
+    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_hash              TEXT NOT NULL,   -- SHA-256(platform:sender_id) — never plaintext
+    platform                 TEXT NOT NULL,
+    sovereign_decision       TEXT NOT NULL,   -- 'pass' or 'hold'
+    tier_triggered           TEXT,
+    response_time_seconds    INTEGER,         -- NULL until resolved
+    outcome                  TEXT,            -- correct_pass | false_positive | false_negative | correct_hold
+    hour_of_day              INTEGER,         -- 0-23, for time-of-day patterns
+    recorded_at              TEXT NOT NULL DEFAULT (datetime('now'))
+)
+"""
+
+# Pending observations — awaiting response-time measurement
+_CREATE_ADVISOR_PENDING = """
+CREATE TABLE IF NOT EXISTS advisor_pending (
+    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id               TEXT NOT NULL UNIQUE,
+    sender_hash              TEXT NOT NULL,
+    platform                 TEXT NOT NULL,
+    decision                 TEXT NOT NULL,   -- 'pass' or 'hold'
+    tier_triggered           TEXT,
+    hour_of_day              INTEGER,
+    decided_at               TEXT NOT NULL DEFAULT (datetime('now')),
+    observation_window_secs  INTEGER NOT NULL  -- 600 for pass, 3600 for hold
+)
+"""
+
+# Suggestions generated from the Advisor's analysis (shown in Interface Layer 6)
+_CREATE_ADVISOR_SUGGESTIONS = """
+CREATE TABLE IF NOT EXISTS advisor_suggestions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    type            TEXT NOT NULL,    -- 'council_promotion' | 'decree_suggestion' | 'pattern'
+    sender_hash     TEXT,
+    platform        TEXT,
+    body            TEXT NOT NULL,    -- human-readable suggestion
+    data_json       TEXT NOT NULL DEFAULT '{}',
+    generated_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    dismissed       INTEGER NOT NULL DEFAULT 0
+)
+"""
+
+# Single-row state: maturity level and install timestamp
+_CREATE_ADVISOR_STATE = """
+CREATE TABLE IF NOT EXISTS advisor_state (
+    id              INTEGER PRIMARY KEY DEFAULT 1,
+    installed_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    first_signal_at TEXT,
+    total_signals   INTEGER NOT NULL DEFAULT 0,
+    maturity_level  INTEGER NOT NULL DEFAULT 0
+)
+"""
+
 # Messages held at delivery during quiet hours — not dropped, waiting to drain
 _CREATE_DELIVERY_HELD = """
 CREATE TABLE IF NOT EXISTS delivery_held (
@@ -143,10 +200,15 @@ async def init_db() -> None:
         await db.execute(_CREATE_SETTINGS)
         await db.execute(_CREATE_DELIVERY_LOG)
         await db.execute(_CREATE_REPLY_SESSIONS)
+        await db.execute(_CREATE_ADVISOR_SIGNALS)
+        await db.execute(_CREATE_ADVISOR_PENDING)
+        await db.execute(_CREATE_ADVISOR_SUGGESTIONS)
+        await db.execute(_CREATE_ADVISOR_STATE)
         await db.execute(_CREATE_DELIVERY_HELD)
         await db.commit()
         await _seed_decrees(db)
         await _seed_settings(db)
+        await _seed_advisor_state(db)
 
 
 async def _seed_decrees(db: aiosqlite.Connection) -> None:
@@ -168,6 +230,13 @@ async def _seed_settings(db: aiosqlite.Connection) -> None:
             "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
             (key, value),
         )
+    await db.commit()
+
+
+async def _seed_advisor_state(db: aiosqlite.Connection) -> None:
+    await db.execute(
+        "INSERT OR IGNORE INTO advisor_state (id) VALUES (1)"
+    )
     await db.commit()
 
 

@@ -19,13 +19,15 @@ async def lifespan(app: FastAPI):
 
     from engine.worker import run as engine_run
     from delivery.worker import run as delivery_run
+    from advisor.observer import run as advisor_run
 
-    engine_task = asyncio.create_task(engine_run(), name="engine")
+    engine_task   = asyncio.create_task(engine_run(),   name="engine")
     delivery_task = asyncio.create_task(delivery_run(), name="delivery")
+    advisor_task  = asyncio.create_task(advisor_run(),  name="advisor")
 
     yield
 
-    for task in (engine_task, delivery_task):
+    for task in (engine_task, delivery_task, advisor_task):
         task.cancel()
         try:
             await task

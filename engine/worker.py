@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from advisor.signals import record_pending
 from core.db import get_db
 from core.models.message import NormalizedMessage
 from core.queue import message_queue
@@ -19,9 +20,9 @@ async def run() -> None:
     Consumes NormalizedMessages from the ingest queue and routes each one:
       - PASS  → drops onto delivery_queue for Layer 3
       - HOLD  → writes to the Vault
-    Chronicle entry is written for every message regardless of decision.
+    Chronicle entry and Advisor pending signal written for every message.
     """
-    from core.delivery_queue import delivery_queue  # imported here to avoid circular
+    from core.delivery_queue import DeliveryItem, delivery_queue
 
     log.info("Urgency engine started")
 
@@ -31,6 +32,7 @@ async def run() -> None:
             try:
                 result = await _evaluate(message, db)
                 await record_chronicle(message, result, db)
+                await record_pending(message, result, db)
 
                 if result.decision == Decision.PASS:
                     log.info(
@@ -39,7 +41,6 @@ async def run() -> None:
                         message.sender.id,
                         result.reason,
                     )
-                    from core.delivery_queue import DeliveryItem
                     await delivery_queue.put(DeliveryItem(message=message, result=result))
                 else:
                     log.debug(
@@ -56,9 +57,7 @@ async def run() -> None:
                 message_queue.task_done()
 
 
-async def _evaluate(
-    message: NormalizedMessage, db
-) -> EngineResult:
+async def _evaluate(message: NormalizedMessage, db) -> EngineResult:
     result = await tier1_council.evaluate(message, db)
     if result:
         return result
@@ -71,7 +70,6 @@ async def _evaluate(
     if result:
         return result
 
-    # Default: hold
     return EngineResult(
         decision=Decision.HOLD,
         tier=Tier.DEFAULT,

@@ -13,6 +13,16 @@ services:
     networks:
       - sovereign
 
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - sovereign
+    # To pull a model after first start:
+    #   docker compose exec ollama ollama pull llama3.2
+
   connectors:
     build: ./connectors
     env_file: .env
@@ -28,6 +38,7 @@ services:
 
 volumes:
   sovereign_data:
+  ollama_data:
 
 networks:
   sovereign:
