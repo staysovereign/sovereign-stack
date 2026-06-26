@@ -53,9 +53,33 @@ If no tier claims urgency, the message waits in **The Vault** — held, never de
 ```bash
 git clone https://github.com/sovereign-stack/sovereign
 cd sovereign
-cp .env.example .env
-# Edit .env — at minimum set DUMB_PHONE_NUMBER and one connector token
+
+# First time only — generates secrets, checks prerequisites
+./setup.sh
+
+# Edit .env: set DUMB_PHONE_NUMBER, TWILIO_*, and one connector token
+# Then start everything
 docker compose up -d
+
+# Pull the Ollama model (runs in the background, takes a few minutes)
+make ollama-pull
+```
+
+Open the interface at **http://localhost**. On first load, Sovereign asks you one question: who should always reach you?
+
+### With WhatsApp
+
+WhatsApp requires a Matrix homeserver (Synapse) and the mautrix-whatsapp bridge:
+
+```bash
+# Generates Synapse config, mautrix config, and all shared secrets
+./setup.sh --whatsapp
+
+# Start the full stack including Matrix bridge
+make up-whatsapp
+
+# Watch for the QR code, then scan with WhatsApp → Linked Devices → Link a Device
+make whatsapp-qr
 ```
 
 That's it. Sovereign initializes its database, seeds default Decrees, and starts listening.
@@ -74,7 +98,7 @@ Seven layers, built in order:
 | 4 | **Reply Routing** | ✅ Done | Dumb phone SMS commands routed back to originating platform |
 | 5 | **The Advisor** | ✅ Done | Local Ollama behavioral model, learns from your response patterns |
 | 6 | **The Interface** | ✅ Done | Browser-only React UI: Vault, Council, Decrees, Advisor, Chronicle |
-| 7 | **Deployment** | 🔧 In progress | Docker Compose skeleton exists; full docs pending |
+| 7 | **Deployment** | ✅ Done | Full Docker Compose stack; setup script; Makefile; WhatsApp bridge profile |
 
 ---
 
@@ -153,6 +177,17 @@ Sovereign sends a confirmation SMS back after each command.
 | VPS (2 GB RAM) | ~€5/month | Recommended for most users |
 | Home server / old laptop | One-time | Always-on required |
 | Raspberry Pi 4 + USB GSM modem | ~€60 one-time | Full sovereignty — no Twilio |
+
+### Common operations
+
+```bash
+make logs           # Tail all service logs
+make status         # Show running containers and health
+make backup         # Dump SQLite DB to ./backups/
+make update         # Pull latest images and rebuild
+make ollama-pull    # Pull the Ollama LLM model
+make whatsapp-qr    # Re-display WhatsApp QR code
+```
 
 ---
 

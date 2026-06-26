@@ -29,6 +29,17 @@ yarn-error.log*
 *.db-wal
 data/
 
+# ── Interface build output ────────────────────────────────────────────────────
+interface/dist/
+interface/node_modules/
+
+# ── Deployment — generated files with secrets ─────────────────────────────────
+# setup.sh patches these in-place with real secrets; don't commit the patched copies
+# The originals (with placeholders) ARE committed as templates.
+# After ./setup.sh --whatsapp the working copies will have real values — gitignore them.
+synapse/homeserver.yaml.bak
+backups/
+
 # ── Docker ────────────────────────────────────────────────────────────────────
 # volumes are external — nothing to ignore here
 
