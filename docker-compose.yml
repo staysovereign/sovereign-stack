@@ -23,6 +23,16 @@ services:
     # To pull a model after first start:
     #   docker compose exec ollama ollama pull llama3.2
 
+  interface:
+    build: ./interface
+    ports:
+      - "80:80"
+    depends_on:
+      - core
+    restart: unless-stopped
+    networks:
+      - sovereign
+
   connectors:
     build: ./connectors
     env_file: .env

@@ -73,7 +73,7 @@ Seven layers, built in order:
 | 3 | **Delivery** | ✅ Done | SMS formatter, quiet hours, Twilio + gammu gateway |
 | 4 | **Reply Routing** | ✅ Done | Dumb phone SMS commands routed back to originating platform |
 | 5 | **The Advisor** | ✅ Done | Local Ollama behavioral model, learns from your response patterns |
-| 6 | **The Interface** | ⏳ Planned | Browser-only React UI: Vault, Council, Decrees, Chronicle |
+| 6 | **The Interface** | ✅ Done | Browser-only React UI: Vault, Council, Decrees, Advisor, Chronicle |
 | 7 | **Deployment** | 🔧 In progress | Docker Compose skeleton exists; full docs pending |
 
 ---
@@ -117,7 +117,7 @@ Every new Realm ships with three Decrees:
 | 10 | Urgency keywords | emergency, urgent, hospital, accident, llámame, ayuda, please call | **PASS** |
 | 20 | Frequency escalation | Same sender 3+ messages in 10 minutes | **PASS** |
 
-You can add, edit, or disable Decrees through the Interface (Layer 6) once it's built. For now, insert rows into the `decrees` table directly or via the API.
+You can add, edit, or disable Decrees through the Interface at `http://localhost` after running `docker compose up`.
 
 ---
 
