@@ -1,9 +1,49 @@
+# ── Python ────────────────────────────────────────────────────────────────────
 .venv/
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# ── Node.js ───────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.npm/
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
 .env
+# keep .env.example — it's documentation, not secrets
+
+# ── Data ─────────────────────────────────────────────────────────────────────
 *.db
 *.db-shm
 *.db-wal
-node_modules/
+data/
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+# volumes are external — nothing to ignore here
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.idea/
+*.swp
+*.swo
+.vscode/*
+!.vscode/settings.json
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
