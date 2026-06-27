@@ -16,7 +16,7 @@ function platformLabel(p) {
 function VaultItem({ item, onRetrieve }) {
   const [expanded, setExpanded] = useState(false);
   const name = item.sender?.name || item.sender?.id || "Unknown";
-  const body = item.content?.text || `[${item.content?.type ?? "media"}]`;
+  const body = item.content?.body || `[${item.content?.type ?? "media"}]`;
 
   function handleExpand() {
     setExpanded((v) => !v);

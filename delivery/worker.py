@@ -21,7 +21,7 @@ async def run() -> None:
     Also periodically drains messages held during quiet hours once quiet hours end.
     """
     log.info("Delivery worker started")
-    async with await get_db() as db:
+    async with get_db() as db:
         drain_task = asyncio.create_task(_drain_loop(db), name="delivery_drain")
         try:
             while True:

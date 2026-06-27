@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/advisor", tags=["advisor"])
 
 @router.get("")
 async def get_advisor():
-    async with await get_db() as db:
+    async with get_db() as db:
         state = await maturity.describe(db)
 
         pending_count = (await (await db.execute(
@@ -49,7 +49,7 @@ async def get_advisor():
 
 @router.post("/suggestions/{suggestion_id}/dismiss", status_code=status.HTTP_200_OK)
 async def dismiss_suggestion(suggestion_id: int):
-    async with await get_db() as db:
+    async with get_db() as db:
         await db.execute(
             "UPDATE advisor_suggestions SET dismissed = 1 WHERE id = ?", (suggestion_id,)
         )
@@ -60,7 +60,7 @@ async def dismiss_suggestion(suggestion_id: int):
 @router.post("/reset", status_code=status.HTTP_200_OK)
 async def reset_advisor():
     """Reset the Advisor to zero. No questions asked. You own the model."""
-    async with await get_db() as db:
+    async with get_db() as db:
         await db.execute("DELETE FROM advisor_signals")
         await db.execute("DELETE FROM advisor_pending")
         await db.execute("DELETE FROM advisor_suggestions")

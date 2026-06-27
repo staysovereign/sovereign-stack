@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose *)",
+      "Bash(npm install *)",
+      "Bash(echo \"---EXIT $?---\")",
+      "Bash(docker run *)",
+      "Bash(curl -s http://localhost/api/vault)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); items=d if isinstance\\(d,list\\) else d.get\\('items',d\\); print\\('count:', len\\(items\\)\\); [print\\('-', \\(i.get\\('message'\\) or i\\).get\\('sender',{}\\).get\\('id'\\), '|', i.get\\('hold_reason'\\)\\) for i in \\(items[-5:] if isinstance\\(items,list\\) else []\\)]\")",
+      "Bash(curl -s http://localhost/api/advisor/maturity)",
+      "Bash(docker compose exec -T core python -c ' *)",
+      "Bash(node --check connectors/email/index.js)"
+    ]
+  }
+}

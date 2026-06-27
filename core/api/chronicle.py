@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/chronicle", tags=["chronicle"])
 
 @router.get("")
 async def get_chronicle(days: int = Query(30, ge=1, le=365)):
-    async with await get_db() as db:
+    async with get_db() as db:
         totals = await (await db.execute(
             """
             SELECT
@@ -17,10 +17,10 @@ async def get_chronicle(days: int = Query(30, ge=1, le=365)):
                 SUM(CASE WHEN decision = 'pass' THEN 1 ELSE 0 END) AS passed,
                 SUM(CASE WHEN decision = 'hold' THEN 1 ELSE 0 END) AS held,
                 SUM(CASE WHEN tier_triggered = 'council' THEN 1 ELSE 0 END) AS by_council,
-                SUM(CASE WHEN tier_triggered = 'decrees' THEN 1 ELSE 0 END) AS by_decrees,
+                SUM(CASE WHEN tier_triggered = 'decree' THEN 1 ELSE 0 END) AS by_decrees,
                 SUM(CASE WHEN tier_triggered = 'advisor' THEN 1 ELSE 0 END) AS by_advisor
             FROM chronicle
-            WHERE evaluated_at >= datetime('now', ? || ' days')
+            WHERE timestamp >= datetime('now', ? || ' days')
             """,
             (f"-{days}",),
         )).fetchone()
@@ -31,18 +31,21 @@ async def get_chronicle(days: int = Query(30, ge=1, le=365)):
                 COUNT(*) AS total,
                 SUM(CASE WHEN decision = 'pass' THEN 1 ELSE 0 END) AS passed
             FROM chronicle
-            WHERE evaluated_at >= datetime('now', ? || ' days')
+            WHERE timestamp >= datetime('now', ? || ' days')
             GROUP BY platform ORDER BY total DESC
             """,
             (f"-{days}",),
         )).fetchall()
 
+        # Column is `timestamp`; alias to evaluated_at for the Interface.
+        # The chronicle table has no sender_name/reason columns — the UI falls
+        # back to sender_id, and surfaces the matched decree_name.
         recent = await (await db.execute(
             """
-            SELECT id, platform, sender_id, sender_name, decision, tier_triggered,
-                   reason, evaluated_at
+            SELECT id, platform, sender_id, decision, tier_triggered,
+                   decree_name, timestamp AS evaluated_at
             FROM chronicle
-            ORDER BY evaluated_at DESC LIMIT 50
+            ORDER BY timestamp DESC LIMIT 50
             """
         )).fetchall()
 

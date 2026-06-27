@@ -26,7 +26,7 @@ async def run() -> None:
 
     log.info("Urgency engine started")
 
-    async with await get_db() as db:
+    async with get_db() as db:
         while True:
             message: NormalizedMessage = await message_queue.get()
             try:
@@ -53,6 +53,20 @@ async def run() -> None:
 
             except Exception:
                 log.exception("Engine error processing message %s", message.id)
+                # Core guardrail: never silently drop a message. If evaluation
+                # failed, fail safe to HOLD so it lands in the Vault rather than
+                # vanishing.
+                try:
+                    fallback = EngineResult(
+                        decision=Decision.HOLD,
+                        tier=Tier.DEFAULT,
+                        reason="Held after engine error during evaluation",
+                    )
+                    await store(message, fallback, db)
+                except Exception:
+                    log.exception(
+                        "Failed to hold message %s after engine error", message.id
+                    )
             finally:
                 message_queue.task_done()
 

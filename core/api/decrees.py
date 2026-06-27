@@ -27,7 +27,7 @@ class DecreeUpdate(BaseModel):
 
 @router.get("")
 async def list_decrees():
-    async with await get_db() as db:
+    async with get_db() as db:
         rows = await (await db.execute(
             "SELECT id, name, condition, condition_value, action, enabled, priority, is_default "
             "FROM decrees ORDER BY priority ASC"
@@ -51,7 +51,7 @@ async def list_decrees():
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_decree(body: DecreeIn):
-    async with await get_db() as db:
+    async with get_db() as db:
         cur = await db.execute(
             "INSERT INTO decrees (name, condition, condition_value, action, priority) "
             "VALUES (?, ?, ?, ?, ?)",
@@ -63,7 +63,7 @@ async def create_decree(body: DecreeIn):
 
 @router.put("/{decree_id}", status_code=status.HTTP_200_OK)
 async def update_decree(decree_id: int, body: DecreeUpdate):
-    async with await get_db() as db:
+    async with get_db() as db:
         row = await (await db.execute("SELECT id FROM decrees WHERE id = ?", (decree_id,))).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Not found")
@@ -84,7 +84,7 @@ async def update_decree(decree_id: int, body: DecreeUpdate):
 
 @router.delete("/{decree_id}", status_code=status.HTTP_200_OK)
 async def delete_decree(decree_id: int):
-    async with await get_db() as db:
+    async with get_db() as db:
         row = await (await db.execute(
             "SELECT is_default FROM decrees WHERE id = ?", (decree_id,)
         )).fetchone()

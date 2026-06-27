@@ -19,7 +19,7 @@ async def handle(raw_sms: str) -> str:
     Returns a confirmation SMS body to send back to the dumb phone.
     """
     cmd = parse(raw_sms)
-    async with await get_db() as db:
+    async with get_db() as db:
         return await _dispatch(cmd, db)
 
 

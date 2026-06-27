@@ -56,6 +56,11 @@ def _compute_level(installed_at: str, total_signals: int) -> int:
     except ValueError:
         return 0
 
+    # SQLite's datetime('now') yields a naive UTC string (no offset); treat any
+    # naive timestamp as UTC so it can be subtracted from an aware now().
+    if installed.tzinfo is None:
+        installed = installed.replace(tzinfo=timezone.utc)
+
     days = (datetime.now(timezone.utc) - installed).days
 
     if days < 14:

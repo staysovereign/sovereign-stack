@@ -19,7 +19,7 @@ _KNOWN_KEYS = {
 
 @router.get("")
 async def get_settings():
-    async with await get_db() as db:
+    async with get_db() as db:
         rows = await (await db.execute("SELECT key, value FROM settings")).fetchall()
     return {r["key"]: r["value"] for r in rows}
 
@@ -35,7 +35,7 @@ async def update_settings(body: SettingsPatch):
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail=f"Unknown settings: {sorted(unknown)}")
 
-    async with await get_db() as db:
+    async with get_db() as db:
         for key, value in body.values.items():
             await db.execute(
                 "INSERT INTO settings (key, value) VALUES (?, ?) "

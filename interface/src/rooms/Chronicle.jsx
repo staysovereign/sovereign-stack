@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../api.js";
 
-const TIER_LABELS = { council: "Council", decrees: "Decrees", advisor: "Advisor", default: "Default" };
+const TIER_LABELS = { council: "Council", decree: "Decrees", advisor: "Advisor", default: "Default" };
 
 function fmt(iso) {
   if (!iso) return "—";

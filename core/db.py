@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from collections import defaultdict, deque
+from contextlib import asynccontextmanager
 
 import aiosqlite
 
@@ -182,17 +183,29 @@ DEFAULT_SETTINGS = {
 sender_timestamps: dict[str, deque] = defaultdict(lambda: deque(maxlen=50))
 
 
-async def get_db() -> aiosqlite.Connection:
+@asynccontextmanager
+async def get_db():
+    """Open a configured aiosqlite connection as an async context manager.
+
+    Use as `async with get_db() as db:`. The connection is awaited (and its
+    worker thread started) exactly once here. Do not pre-await it at the call
+    site (the old `async with await get_db()` form) — that awaits the
+    connection twice, restarting the thread, which raises
+    "threads can only be started once" on current aiosqlite.
+    """
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
     await db.execute("PRAGMA journal_mode=WAL")
     await db.execute("PRAGMA foreign_keys=ON")
-    return db
+    try:
+        yield db
+    finally:
+        await db.close()
 
 
 async def init_db() -> None:
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    async with await get_db() as db:
+    async with get_db() as db:
         await db.execute(_CREATE_COUNCIL)
         await db.execute(_CREATE_DECREES)
         await db.execute(_CREATE_VAULT)

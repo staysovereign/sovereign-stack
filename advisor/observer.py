@@ -30,7 +30,7 @@ async def run() -> None:
     cycles_since_suggestions = 0
     suggestion_every_n = _SUGGESTION_INTERVAL // _POLL_INTERVAL
 
-    async with await get_db() as db:
+    async with get_db() as db:
         while True:
             await asyncio.sleep(_POLL_INTERVAL)
             try:
@@ -96,14 +96,17 @@ async def _determine_outcome(row: aiosqlite.Row, db: aiosqlite.Connection) -> st
     window = row["observation_window_secs"]
 
     if decision == "pass":
+        # decided_at belongs to advisor_pending (this row), not reply_sessions —
+        # bind it as a parameter. A reply counts if it happened within the window
+        # after the decision: created_at < decided_at + window.
         replied = await (
             await db.execute(
                 """
                 SELECT 1 FROM reply_sessions
                 WHERE message_id = ? AND used = 1
-                  AND datetime(created_at, '+' || ? || ' seconds') > decided_at
+                  AND datetime(created_at) < datetime(?, '+' || ? || ' seconds')
                 """,
-                (message_id, window),
+                (message_id, row["decided_at"], window),
             )
         ).fetchone()
         return "correct_pass" if replied else "false_positive"

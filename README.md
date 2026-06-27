@@ -51,7 +51,7 @@ If no tier claims urgency, the message waits in **The Vault** — held, never de
 ## Quick start
 
 ```bash
-git clone https://github.com/sovereign-stack/sovereign
+git clone https://github.com/zerohashcrbn/sovereign-stack.git
 cd sovereign
 
 # First time only — generates secrets, checks prerequisites
@@ -66,6 +66,8 @@ make ollama-pull
 ```
 
 Open the interface at **http://localhost**. On first load, Sovereign asks you one question: who should always reach you?
+
+> 📖 **New to Sovereign?** The [User Guide](docs/USER_GUIDE.md) explains every screen and how to configure it, in plain language with examples — written for non-technical users.
 
 ### With WhatsApp
 
@@ -128,6 +130,18 @@ TWILIO_PHONE_NUMBER=+1987654321
 ```
 
 For WhatsApp, you additionally need to run the mautrix-whatsapp bridge and set `WHATSAPP_BRIDGE_SECRET` and `MATRIX_*` variables. See the spec for full bridge setup.
+
+### Email connector tuning
+
+The email connector watches your inbox and routes new mail through the engine. To stop a large backlog of existing unread mail from flooding delivery on startup, set how many pre-existing unseen messages it processes on boot:
+
+```env
+# unset → 10 (safe default)   ·   0 → skip backlog, only new mail
+# N → the N most recent unseen ·   all → process every unseen message
+EMAIL_STARTUP_SCAN_LIMIT=10
+```
+
+Mail arriving *after* startup is always processed live, regardless of this setting.
 
 ---
 

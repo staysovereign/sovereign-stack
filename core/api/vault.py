@@ -17,7 +17,7 @@ async def list_vault(
 ):
     offset = (page - 1) * limit
     filter_clause = "" if retrieved else "WHERE retrieved = 0"
-    async with await get_db() as db:
+    async with get_db() as db:
         total = (await (await db.execute(
             f"SELECT COUNT(*) FROM vault {filter_clause}"
         )).fetchone())[0]
@@ -52,7 +52,7 @@ async def list_vault(
 @router.post("/{vault_id}/retrieve", status_code=status.HTTP_200_OK)
 async def mark_retrieved(vault_id: int):
     """Mark a vault entry as retrieved. Signals the Advisor (false negative check)."""
-    async with await get_db() as db:
+    async with get_db() as db:
         row = await (await db.execute(
             "SELECT id, retrieved FROM vault WHERE id = ?", (vault_id,)
         )).fetchone()
