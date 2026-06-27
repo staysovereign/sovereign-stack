@@ -39,4 +39,18 @@ function buildMessage({ platform, sender, content, group = null, metadata = {} }
   };
 }
 
-module.exports = { dispatch, buildMessage };
+/**
+ * Loose phone-number equality. Gateways report inbound numbers inconsistently
+ * (national vs E.164), e.g. InfiniReach sends "3246530369" while the configured
+ * number is "+573246530369". Compare the trailing significant digits so
+ * "3246530369", "573246530369" and "+57 324 653 0369" all match.
+ */
+function samePhone(a, b) {
+  const da = String(a || '').replace(/\D/g, '');
+  const db = String(b || '').replace(/\D/g, '');
+  if (da.length < 7 || db.length < 7) return false;
+  const n = Math.min(da.length, db.length);
+  return da.slice(-n) === db.slice(-n);
+}
+
+module.exports = { dispatch, buildMessage, samePhone };

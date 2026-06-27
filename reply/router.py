@@ -38,11 +38,21 @@ async def _dispatch(cmd: ParsedCommand, db: aiosqlite.Connection) -> str:
 
     if cmd.type == CommandType.REPLY_NAME:
         session = await get_session_by_name(cmd.name, db)
-        return await _cmd_reply_session(session, cmd.text, db)
+        if session is not None:
+            return await _cmd_reply_session(session, cmd.text, db)
+        # No contact by that name → the first word was just the start of the
+        # message (e.g. "r ya te llamo"). Reply to the latest conversation.
+        full_text = f"{cmd.name} {cmd.text}".strip()
+        return await _cmd_reply_session(await get_active_session(db), full_text, db)
 
     if cmd.type == CommandType.REPLY_INDEX:
         session = await get_session_by_index(cmd.index, db)
-        return await _cmd_reply_session(session, cmd.text, db)
+        if session is not None:
+            return await _cmd_reply_session(session, cmd.text, db)
+        # No message at that position → the number was part of the message
+        # (e.g. "r 5 minutos y llego"). Reply to the latest conversation.
+        full_text = f"{cmd.index} {cmd.text}".strip()
+        return await _cmd_reply_session(await get_active_session(db), full_text, db)
 
     return "SOVEREIGN: Unknown command. Send 'status' for help."
 

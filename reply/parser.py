@@ -42,10 +42,14 @@ def parse(raw: str) -> ParsedCommand:
     if m:
         return ParsedCommand(type=CommandType.REPLY_INDEX, index=int(m.group(1)), text=m.group(2))
 
-    # r name [text]  — name is a single word that is NOT a number
+    # r name [text]  — name is a single word that is NOT a number.
+    # This is only a *candidate*: the first word is ambiguous (a contact name vs
+    # the start of the message). The router confirms it against real sessions and
+    # falls back to REPLY_LATEST if no contact matches, so "r ya te llamo" still
+    # works. Keep original case so that fallback can reconstruct the message.
     m = re.match(r"^r\s+([A-Za-z]\w*)\s+(.+)$", s, re.IGNORECASE)
     if m:
-        return ParsedCommand(type=CommandType.REPLY_NAME, name=m.group(1).lower(), text=m.group(2))
+        return ParsedCommand(type=CommandType.REPLY_NAME, name=m.group(1), text=m.group(2))
 
     # r [text]
     m = re.match(r"^r\s+(.+)$", s, re.IGNORECASE)

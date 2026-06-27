@@ -35,10 +35,19 @@ interface/node_modules/
 
 # ── Deployment — generated files with secrets ─────────────────────────────────
 # setup.sh patches these in-place with real secrets; don't commit the patched copies
-# The originals (with placeholders) ARE committed as templates.
-# After ./setup.sh --whatsapp the working copies will have real values — gitignore them.
+# Templates with placeholders ARE committed (*.example). The patched/generated
+# working copies below hold real secrets (tokens, signing/shared secrets,
+# WhatsApp session) and must NEVER be committed.
+synapse/homeserver.yaml
 synapse/homeserver.yaml.bak
+mautrix/config.yaml
+mautrix/registration.yaml
+mautrix/*.legacy
+mautrix/*.db
+mautrix/*.db-wal
+mautrix/*.db-shm
 backups/
+.backups/
 
 # ── Docker ────────────────────────────────────────────────────────────────────
 # volumes are external — nothing to ignore here

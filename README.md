@@ -71,20 +71,19 @@ Open the interface at **http://localhost**. On first load, Sovereign asks you on
 
 ### With WhatsApp
 
-WhatsApp requires a Matrix homeserver (Synapse) and the mautrix-whatsapp bridge:
+WhatsApp is bridged through a private Matrix homeserver (Synapse) + the mautrix-whatsapp bridge, so the real you stays reachable and Sovereign filters transparently. It's a few guided steps (generate the bridge config, register it, create the Matrix user, link WhatsApp with a pairing code):
 
 ```bash
-# Generates Synapse config, mautrix config, and all shared secrets
-./setup.sh --whatsapp
-
-# Start the full stack including Matrix bridge
-make up-whatsapp
-
-# Watch for the QR code, then scan with WhatsApp → Linked Devices → Link a Device
-make whatsapp-qr
+./setup.sh --whatsapp            # prepares the Synapse config
 ```
 
-That's it. Sovereign initializes its database, seeds default Decrees, and starts listening.
+> 📖 Then follow the **[WhatsApp Bridge Setup guide](docs/WHATSAPP_SETUP.md)** — a complete, step-by-step walkthrough with troubleshooting.
+
+Once linked, always start the stack **with the whatsapp profile** so Synapse and the bridge run too:
+
+```bash
+docker compose --profile whatsapp up -d      # or: make up-whatsapp
+```
 
 ---
 
@@ -142,6 +141,38 @@ EMAIL_STARTUP_SCAN_LIMIT=10
 ```
 
 Mail arriving *after* startup is always processed live, regardless of this setting.
+
+### SMS delivery gateway
+
+Sovereign can send the urgent SMS through one of several gateways, chosen with `SMS_GATEWAY` (or auto-detected in the order **twilio → infinireach → android → gammu**):
+
+| `SMS_GATEWAY` | Who it's for | Setup |
+|---|---|---|
+| `twilio` | Quickest start | Set `TWILIO_*` credentials |
+| `infinireach` | No USB modem; want a hosted relay that sends via your own SIM | [InfiniReach](https://infinireach.io) account + `INFINIREACH_API_KEY` |
+| `android` | No USB modem; prefer a fully local LAN setup | An Android phone with a SIM running an HTTP SMS-gateway app on your LAN |
+| `gammu` | Full sovereignty | A USB GSM modem + `GAMMU_CONFIG_PATH` |
+
+Both `infinireach` and `android` use a phone's SIM, so SMS is **local-to-local** — avoiding the foreign-number A2P filtering that blocks cloud long codes in some countries (e.g. Colombia).
+
+**InfiniReach replies (inbound):** to route your dumb-phone replies back, configure InfiniReach's `message.inbound` webhook to:
+
+```
+POST  https://<your-public-host>/infinireach/webhook
+```
+
+The connectors port must be reachable from the internet (port-forward or a tunnel like ngrok/cloudflared). Optionally set `INFINIREACH_WEBHOOK_SECRET` and append `?secret=…` to the URL to reject unauthenticated calls. Outbound works without any of this; only replies need the public webhook.
+
+**Android phone gateway:** install an on-phone HTTP SMS-gateway app (e.g. the open-source *SMS Gateway for Android*) in **local server** mode, put the phone on the same network as Sovereign, then set:
+
+```env
+SMS_GATEWAY=android
+ANDROID_SMS_GATEWAY_URL=http://<phone-ip>:8080
+ANDROID_SMS_GATEWAY_USER=...
+ANDROID_SMS_GATEWAY_PASS=...
+```
+
+The phone sends from its own SIM, so local-to-local SMS isn't subject to the foreign-number A2P filtering that blocks cloud providers in some countries — a good stand-in until a GSM modem arrives.
 
 ---
 
@@ -214,7 +245,7 @@ make whatsapp-qr    # Re-display WhatsApp QR code
 | WhatsApp bridge | mautrix-whatsapp (Go) |
 | Database | SQLite (WAL mode) |
 | AI / Advisor | Ollama (local LLM — never cloud) |
-| SMS gateway | Twilio API / gammu (USB GSM modem) |
+| SMS gateway | Twilio API / Android phone (HTTP) / gammu (USB GSM modem) |
 | Interface | React + Vite *(Layer 6)* |
 | Deployment | Docker Compose |
 | License | AGPL-3.0 |

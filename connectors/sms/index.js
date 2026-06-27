@@ -13,7 +13,7 @@
 
 const express = require('express');
 const twilio = require('twilio');
-const { dispatch, buildMessage } = require('../shared/normalize');
+const { dispatch, buildMessage, samePhone } = require('../shared/normalize');
 
 const router = express.Router();
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -45,10 +45,12 @@ router.post('/webhook', express.urlencoded({ extended: false }), async (req, res
 
   const { From, Body, MessageSid, NumMedia } = req.body;
 
-  // Dumb phone reply — route to reply router, not urgency engine
-  if (DUMB_PHONE && From === DUMB_PHONE) {
+  // Dumb phone reply — route to reply router, not urgency engine.
+  // Match loosely (formats vary) but forward the canonical DUMB_PHONE so the
+  // core /reply strict-equality check passes.
+  if (DUMB_PHONE && samePhone(From, DUMB_PHONE)) {
     try {
-      await forwardToReply(From, Body || '');
+      await forwardToReply(DUMB_PHONE, Body || '');
     } catch (err) {
       console.error('[sms] reply forward failed:', err.message);
     }

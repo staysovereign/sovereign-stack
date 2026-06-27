@@ -77,6 +77,20 @@ async def _process(item: DeliveryItem, db: aiosqlite.Connection) -> None:
         await _create_reply_session(message, sms_body, council_name, db)
     else:
         log.error("SMS FAILED [%s] %s: %s", message.platform.value, message.sender.id, send_result.error)
+        # Core guardrail: an urgent message that couldn't be delivered must not
+        # vanish. It was PASSed, so it isn't in the Vault — hold it now so it
+        # stays visible and recoverable instead of being silently dropped.
+        from engine.result import Decision, EngineResult
+        from engine.vault import store
+        await store(
+            message,
+            EngineResult(
+                decision=Decision.HOLD,
+                tier=result.tier,
+                reason=f"Urgent, but SMS delivery failed ({send_result.error}); kept here so it isn't lost",
+            ),
+            db,
+        )
 
 
 async def _create_reply_session(

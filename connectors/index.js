@@ -6,8 +6,8 @@ const app = express();
 const PORT = process.env.CONNECTORS_PORT || 3000;
 
 // Webhook-based connectors mount as Express routers
-app.use('/whatsapp', require('./whatsapp/index'));
 app.use('/sms', require('./sms/index'));
+app.use('/infinireach', require('./infinireach/index'));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
@@ -26,4 +26,11 @@ if (process.env.EMAIL_IMAP_HOST) {
   require('./email/index');
 } else {
   console.warn('[email] EMAIL_IMAP_HOST not set — connector skipped');
+}
+
+// WhatsApp via the mautrix Matrix bridge — runs a Matrix /sync loop, not a webhook
+if (process.env.MATRIX_ACCESS_TOKEN) {
+  require('./whatsapp/index');
+} else {
+  console.warn('[whatsapp] MATRIX_ACCESS_TOKEN not set — connector skipped');
 }
