@@ -10,12 +10,22 @@ async def evaluate(message: NormalizedMessage, db: aiosqlite.Connection) -> Engi
     """
     Tier 1: The Council.
     If the sender is on the Council for their platform, the message passes immediately.
+
+    Members are matched by their platform sender id OR, when available, their phone
+    number. The phone match is essential for WhatsApp: there the sender id is a
+    Matrix MXID (e.g. @whatsapp_573...:server), but users add Council members by
+    phone number — the connector still populates sender.phone, so we match on that.
     Returns an EngineResult if a decision is reached, None to fall through to Tier 2.
     """
+    candidates = [message.sender.id]
+    if message.sender.phone:
+        candidates.append(message.sender.phone)
+    placeholders = ", ".join("?" for _ in candidates)
+
     row = await (
         await db.execute(
-            "SELECT id, name FROM council WHERE platform = ? AND sender_id = ?",
-            (message.platform.value, message.sender.id),
+            f"SELECT id, name FROM council WHERE platform = ? AND sender_id IN ({placeholders})",
+            (message.platform.value, *candidates),
         )
     ).fetchone()
 
