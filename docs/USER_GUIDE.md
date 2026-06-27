@@ -78,9 +78,17 @@ And remember: on *every* platform, group messages are held by default (the "Hold
 
 ---
 
+## Signing in
+
+The first time you open the dashboard, Sovereign asks you to **set a password**. After that, you'll enter it each time you open Sovereign — it keeps anyone else on your network out of your Realm. There are no usernames and no accounts; it's just you.
+
+- **Lock** (top-right) signs you out.
+- **Password** (top-right) lets you change it; changing it signs out any other device.
+- Forgot it? It can be reset from the server (clear the password in the database, then set a new one on next load).
+
 ## The first time you open Sovereign
 
-On first use, Sovereign asks you a single question:
+After setting your password, Sovereign asks you a single question:
 
 > *Who are the people whose message should always reach you, no matter what, no matter when?*
 
@@ -99,7 +107,7 @@ Add a few people and press **Begin**. You can always change this later. Take you
 
 ## The five rooms
 
-Your dashboard has five "rooms," shown as tabs across the top. Here's what each one is for, how to use it, and when to visit.
+Your dashboard has five "rooms" — plus a small **Settings** tab — shown across the top. Here's what each is for, how to use it, and when to visit.
 
 ---
 
@@ -170,13 +178,37 @@ These three are marked **default** and can't be deleted — but you can switch a
 5. Set a **Priority** number (explained below).
 6. Click **Create Decree**.
 
-**How priority works (important):** Decrees are checked from the **lowest number first**, and **the first one that matches wins** — the rest are skipped. So a rule with priority `5` is checked before one with priority `50`.
+#### How priority works
 
-> **Worked example — silence marketing emails, but never miss the hospital:**
-> 1. Create *"Pass hospital"* → Condition: *contains keyword* → `hospital, emergency` → Action: **PASS** → Priority **5**.
-> 2. Create *"Hold newsletters"* → Condition: *contains keyword* → `newsletter, sale, unsubscribe` → Action: **HOLD** → Priority **20**.
->
-> Because "Pass hospital" has the lower number, a message saying *"hospital sale today"* still reaches you — the urgent rule is checked first.
+Every Decree has a **priority number**. Sovereign checks your Decrees in order **from the lowest number to the highest**, and **the first rule whose condition matches wins** — Sovereign applies that rule's action (PASS or HOLD) and **stops**; the remaining Decrees are not checked.
+
+Think of it as a checklist read top-to-bottom, where "top" is the *smallest* number:
+
+- **Lower number = checked earlier = higher priority.** Priority `1` is checked before `10`, which is checked before `50`.
+- **First match wins, then it stops.** As soon as one Decree matches, the rest are skipped.
+- New Decrees default to priority **`50`**, leaving room above and below.
+
+Your three default Decrees are numbered deliberately:
+
+| Priority | Decree | Action |
+|---|---|---|
+| `1` | Hold all group messages | HOLD |
+| `10` | Urgency keywords | PASS |
+| `20` | Frequency escalation | PASS |
+
+Because "Hold all group messages" sits at `1`, a group message is held **before** the keyword check at `10` ever runs — that's why a group message containing *"urgente"* still waits in the Vault.
+
+> **Your Council always wins first.** Priority only orders the *Decrees*. The Council is checked *before* any Decree at all — so a Council member's message always reaches you, even from a group, no matter the decree priorities. That's the clean way to let one important person through group noise: add them to the Council rather than reshuffling Decrees.
+
+**Worked example — silence marketing email, but never miss the hospital:**
+1. *"Pass hospital"* → contains keyword `hospital, emergency` → **PASS** → priority **`5`**
+2. *"Hold newsletters"* → contains keyword `newsletter, sale, unsubscribe` → **HOLD** → priority **`20`**
+
+A message saying *"hospital sale today"* still reaches you: "Pass hospital" (`5`) is checked before "Hold newsletters" (`20`), matches first, and wins.
+
+**Tips:**
+- Put **PASS overrides** at **low** numbers (checked first); put broad **HOLD** catch-alls at **high** numbers.
+- Leave **gaps** (`10, 20, 30…`) so you can slot a new rule *between* existing ones later without renumbering.
 
 **When to visit:** Often at first, as you fine-tune your rules; rarely once they feel right.
 
@@ -223,6 +255,20 @@ This room is **read-only** — it's for reflection, not configuration. It's wher
 
 ---
 
+### ⚙️ Settings — *quiet hours & preferences*
+
+**What it is:** A small preferences screen — less a governance "room," more where you set how Sovereign behaves.
+
+**What you can set:**
+- **Quiet hours** — turn them on and choose a **From / Until** window and your **timezone**. During quiet hours, urgent messages wait until the window ends instead of reaching your phone. (Council members marked *"always deliver"* still get through.)
+- **Flood override** — *"wake me anyway if **N** urgent messages arrive within **M** minutes,"* so a genuine emergency still breaks through quiet hours.
+
+Press **Save** when you're done. That's it.
+
+**When to visit:** Rarely — once your quiet hours feel right.
+
+---
+
 ## Replying from your simple phone (SMS commands)
 
 When an urgent message reaches your phone, you have a **15-minute window** to simply **text back your reply** — Sovereign routes it to the right person on the right platform, invisibly. To them, it's a normal conversation.
@@ -244,9 +290,9 @@ Sovereign texts back a short confirmation after each command, so you always know
 
 ## Quiet hours
 
-Quiet hours let messages wait quietly overnight, even if they'd normally reach your phone. During quiet hours, only Council members with **"Always deliver"** turned on can wake you.
+Quiet hours let messages wait quietly overnight, even if they'd normally reach your phone. During quiet hours, only Council members with **"Always deliver"** turned on — or a genuine flood (the override) — can wake you.
 
-In this version, the **per-person override** is set in **The Council** (the *"Always deliver, even during quiet hours"* toggle). The overall quiet-hours window is an advanced setting configured by whoever set up your Sovereign — ask them if you'd like it adjusted.
+Set the window yourself in the **Settings** tab: turn quiet hours on, pick a **From / Until** time and your **timezone**, and optionally a **flood override**. The **per-person** exception lives in **The Council** (each member's *"Always deliver, even during quiet hours"* toggle).
 
 ---
 
@@ -276,6 +322,9 @@ The filtering needs to see message text to match your keyword rules, but it runs
 
 **What if I set up a rule wrong?**
 Nothing breaks. Worst case, a message goes to the Vault instead of your phone (or vice-versa). Adjust the Decree and you're set. Check the Chronicle to see what happened.
+
+**Can someone reach me urgently without being in my Council?**
+Yes — in a **1:1 (direct) chat**, a message containing an urgency keyword (e.g. *urgent, hospital, llámame*) passes to your phone even if the sender isn't in your Council. The "Hold all group messages" rule only applies to **group** chats, so it doesn't block direct messages. Inside **groups**, though, only **Council members** get through (keywords alone won't pass there — otherwise anyone in a noisy group could ping you by typing "urgent").
 
 **Can I start over?**
 Yes — reset the Advisor from its room, edit or disable any Decree, and add/remove Council members any time. It's your Realm.

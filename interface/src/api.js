@@ -1,13 +1,41 @@
 const BASE = "/api";
+const TOKEN_KEY = "sovereign_token";
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+export function setToken(t) {
+  if (t) localStorage.setItem(TOKEN_KEY, t);
+}
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+// Called when a protected request comes back 401 (expired/invalid session).
+let onUnauthorized = null;
+export function setUnauthorizedHandler(fn) {
+  onUnauthorized = fn;
+}
 
 async function request(method, path, body) {
-  const opts = {
+  const headers = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(BASE + path, {
     method,
-    headers: body !== undefined ? { "Content-Type": "application/json" } : {},
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
-  };
-  const res = await fetch(BASE + path, opts);
+  });
+
   if (!res.ok) {
+    // A 401 on a normal call means our session is gone — drop it and re-login.
+    // (Auth endpoints handle their own 401s, e.g. a wrong password on login.)
+    if (res.status === 401 && !path.startsWith("/auth/")) {
+      clearToken();
+      if (onUnauthorized) onUnauthorized();
+    }
     const text = await res.text();
     throw new Error(`${res.status} ${text}`);
   }
@@ -16,6 +44,14 @@ async function request(method, path, body) {
 }
 
 export const api = {
+  // Auth
+  authStatus:  () => request("GET", "/auth/status"),
+  authSetup:   (password) => request("POST", "/auth/setup", { password }),
+  authLogin:   (password) => request("POST", "/auth/login", { password }),
+  authChange:  (current_password, new_password) =>
+    request("POST", "/auth/change", { current_password, new_password }),
+  authLogout:  () => request("POST", "/auth/logout"),
+
   // Vault
   vault:          (page = 1, retrieved = false) => request("GET", `/vault?page=${page}&retrieved=${retrieved}`),
   vaultRetrieve:  (id) => request("POST", `/vault/${id}/retrieve`),

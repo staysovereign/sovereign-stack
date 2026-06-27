@@ -169,6 +169,15 @@ CREATE TABLE IF NOT EXISTS delivery_held (
 )
 """
 
+# Single-row table holding the dashboard password hash (set via the UI)
+_CREATE_AUTH = """
+CREATE TABLE IF NOT EXISTS auth (
+    id            INTEGER PRIMARY KEY CHECK (id = 1),
+    password_hash TEXT,
+    updated_at    TEXT
+)
+"""
+
 # ── Default settings ──────────────────────────────────────────────────────────
 DEFAULT_SETTINGS = {
     "quiet_hours_enabled": "false",
@@ -218,6 +227,9 @@ async def init_db() -> None:
         await db.execute(_CREATE_ADVISOR_SUGGESTIONS)
         await db.execute(_CREATE_ADVISOR_STATE)
         await db.execute(_CREATE_DELIVERY_HELD)
+        await db.execute(_CREATE_AUTH)
+        await db.commit()
+        await db.execute("INSERT OR IGNORE INTO auth (id) VALUES (1)")
         await db.commit()
         await _seed_decrees(db)
         await _seed_settings(db)

@@ -75,15 +75,37 @@ function contentFromEvent(content) {
   }
 }
 
-// A portal room is a group if more than one WhatsApp puppet user is joined.
+// Decide group vs DM using the bridge's own room metadata. The reliable signal
+// is the WhatsApp chat JID in the `m.bridge` state event: `<id>@g.us` is a group,
+// `<phone>@s.whatsapp.net` is a 1:1 DM. (Counting puppets is WRONG: your own
+// linked WhatsApp account is also a member of every room, so a DM has two
+// @whatsapp_* members.)
 async function isGroupRoom(roomId) {
   if (groupCache.has(roomId)) return groupCache.get(roomId);
-  let isGroup = false;
+  let isGroup = null;
   try {
-    const data = await api('GET', `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/joined_members`);
-    const wa = Object.keys(data.joined || {}).filter((u) => u.startsWith('@whatsapp_'));
-    isGroup = wa.length > 1;
-  } catch { /* default to DM */ }
+    const state = await api('GET', `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state`);
+    const bridge = state.find((e) => e.type === 'm.bridge' || e.type === 'uk.half-shot.bridge');
+    if (bridge && bridge.content) {
+      const jid = (bridge.content.channel && bridge.content.channel.id) || '';
+      // Only a real 1:1 chat (@s.whatsapp.net) is treated as a DM. Everything
+      // else — groups (@g.us), newsletters/channels (@newsletter), status
+      // broadcasts, filtering spaces — is held like a group by default.
+      if (jid.endsWith('@s.whatsapp.net')) isGroup = false;
+      else if (jid) isGroup = true;
+    }
+  } catch { /* fall through to heuristic */ }
+
+  if (isGroup === null) {
+    // Fallback: count WhatsApp puppets. Your own account's puppet is always a
+    // member too, so a 1:1 DM has 2 — treat more than 2 as a group.
+    try {
+      const data = await api('GET', `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/joined_members`);
+      const wa = Object.keys(data.joined || {}).filter((u) => u.startsWith('@whatsapp_'));
+      isGroup = wa.length > 2;
+    } catch { isGroup = false; }
+  }
+
   groupCache.set(roomId, isGroup);
   return isGroup;
 }

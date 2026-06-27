@@ -7,13 +7,14 @@ from core.db import get_db
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
+# Keys the engine/delivery actually read (see delivery/quiet_hours.py).
 _KNOWN_KEYS = {
     "quiet_hours_enabled",
     "quiet_hours_start",
     "quiet_hours_end",
-    "quiet_hours_timezone",
-    "frequency_threshold",
-    "frequency_window_minutes",
+    "quiet_hours_tz",
+    "quiet_hours_threshold_count",
+    "quiet_hours_threshold_window_seconds",
 }
 
 

@@ -42,6 +42,31 @@
   color: var(--paper);
 }
 
+/* Top line: wordmark (left) + account actions (right), baseline-aligned */
+.sovereign-topbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+}
+
+/* Account actions: quiet, secondary */
+.sovereign-account {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+.account-btn {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: color 0.1s;
+}
+.account-btn:hover { color: var(--ink); }
+.account-sep { color: var(--border); font-size: 0.7rem; user-select: none; }
+
 .sovereign-main {
   flex: 1;
   padding-block: 2.5rem;

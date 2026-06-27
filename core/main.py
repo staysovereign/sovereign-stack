@@ -4,8 +4,11 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
+from core import auth
+from core.api.auth import router as auth_router
 from core.api.ingest import router as ingest_router
 from core.api.reply import router as reply_router
 from core.api.vault import router as vault_router
@@ -43,6 +46,21 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Sovereign Core", version="0.1.0", lifespan=lifespan)
 
+
+@app.middleware("http")
+async def require_auth(request: Request, call_next):
+    """Protect the dashboard API. Everything under /api/ requires a valid token
+    except /api/auth/* (status, setup, login). Internal endpoints used by the
+    connectors (/ingest, /reply) and /health are not under /api/ and stay open."""
+    path = request.url.path
+    if path.startswith("/api/") and not path.startswith("/api/auth/"):
+        token = auth.bearer_from_header(request.headers.get("authorization"))
+        if not auth.check_token(token):
+            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    return await call_next(request)
+
+
+app.include_router(auth_router)
 app.include_router(ingest_router)
 app.include_router(reply_router)
 app.include_router(vault_router)
