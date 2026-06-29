@@ -75,61 +75,30 @@ async function processMessage(client, uid) {
   }
 }
 
-async function start() {
-  const client = new ImapFlow(config);
+// High-water-mark UID, kept across reconnects within this process so we never
+// re-ingest old mail and never miss mail that arrived during a disconnect.
+let lastUid = null;
 
-  client.on('error', (err) => {
-    console.error('[email] IMAP error:', err.message);
-  });
+async function runOnce() {
+  const client = new ImapFlow(config);
+  client.on('error', (err) => console.error('[email] IMAP error:', err.message));
 
   await client.connect();
-  console.log('[email] connected, listening via IDLE...');
+  await client.mailboxOpen('INBOX');
+  const currentMax = (client.mailbox.uidNext || 1) - 1;
+  const firstConnect = lastUid === null;
 
-  const lock = await client.getMailboxLock('INBOX');
-  try {
-    // High-water mark: the highest UID that existed when we connected. New mail
-    // always has a higher UID (uidNext - 1 is the current max). We only ever
-    // process UIDs above this mark, so the same message is never re-ingested —
-    // the previous code re-scanned all unseen mail on every IDLE event, which
-    // (combined with random message ids) flooded the Vault with duplicates.
-    let lastUid = (client.mailbox.uidNext || 1) - 1;
-    let processing = false;
-
-    // search() must return UIDs to match download()'s { uid: true }, otherwise
-    // sequence numbers get treated as UIDs and the wrong/empty message is fetched.
-    async function processNew() {
-      if (processing) return; // serialize; a later IDLE event will catch stragglers
-      processing = true;
-      try {
-        const found = await client.search({ uid: `${lastUid + 1}:*` }, { uid: true });
-        // A uid-range search can echo the boundary uid; filter strictly greater.
-        const fresh = (found || []).filter((u) => u > lastUid);
-        for (const uid of fresh) {
-          try {
-            await processMessage(client, uid);
-          } catch (err) {
-            console.error(`[email] failed to process uid ${uid}:`, err.message);
-          }
-          if (uid > lastUid) lastUid = uid;
-        }
-      } finally {
-        processing = false;
-      }
-    }
-
-    // Process backlog on startup, bounded by EMAIL_STARTUP_SCAN_LIMIT so a large
-    // backlog can't flood delivery on boot. After this, lastUid sits at the
-    // current max regardless, so IDLE only ever sees genuinely new mail.
+  if (firstConnect) {
+    // Establish the watermark per EMAIL_STARTUP_SCAN_LIMIT.
     if (STARTUP_SCAN_LIMIT === 0) {
-      console.log(`[email] EMAIL_STARTUP_SCAN_LIMIT=0 — skipping backlog (watermark uid=${lastUid}); only new mail`);
+      lastUid = currentMax;
+      console.log(`[email] connected — skipping backlog (watermark uid=${lastUid}); only new mail`);
     } else {
       const allUnseen = await client.search({ seen: false }, { uid: true });
-      // Keep the most recent ones (search returns UIDs in ascending order).
-      const uids =
-        STARTUP_SCAN_LIMIT === Infinity ? allUnseen : allUnseen.slice(-STARTUP_SCAN_LIMIT);
+      const uids = STARTUP_SCAN_LIMIT === Infinity ? allUnseen : allUnseen.slice(-STARTUP_SCAN_LIMIT);
       const skipped = allUnseen.length - uids.length;
       console.log(
-        `[email] ${allUnseen.length} unseen on startup; processing ${uids.length}` +
+        `[email] connected — ${allUnseen.length} unseen; processing ${uids.length}` +
           (skipped > 0 ? ` (skipping ${skipped} older — raise EMAIL_STARTUP_SCAN_LIMIT to include them)` : ''),
       );
       for (const uid of uids) {
@@ -139,19 +108,58 @@ async function start() {
           console.error(`[email] failed to process uid ${uid}:`, err.message);
         }
       }
+      lastUid = currentMax;
     }
+  } else {
+    console.log(`[email] reconnected (watermark uid=${lastUid})`);
+  }
 
-    // IDLE — fires on new mail; only newly-arrived UIDs are processed.
-    client.on('exists', () => {
-      processNew().catch((err) => console.error('[email] processNew error:', err.message));
-    });
+  let processing = false;
+  async function processNew() {
+    if (processing) return; // serialize; a later IDLE event catches stragglers
+    processing = true;
+    try {
+      // search() must return UIDs to match download()'s { uid: true }.
+      const found = await client.search({ uid: `${lastUid + 1}:*` }, { uid: true });
+      const fresh = (found || []).filter((u) => u > lastUid);
+      for (const uid of fresh) {
+        try {
+          await processMessage(client, uid);
+        } catch (err) {
+          console.error(`[email] failed to process uid ${uid}:`, err.message);
+        }
+        if (uid > lastUid) lastUid = uid;
+      }
+    } finally {
+      processing = false;
+    }
+  }
 
-    // Keep IDLE alive indefinitely
-    await new Promise(() => {});
-  } finally {
-    lock.release();
-    await client.logout();
+  // IDLE — fires on new mail; only newly-arrived UIDs are processed.
+  client.on('exists', () => processNew().catch((e) => console.error('[email] processNew error:', e.message)));
+
+  // After a reconnect, immediately catch up on anything that arrived while away.
+  if (!firstConnect) await processNew();
+
+  // Block until the connection closes, then let run() reconnect.
+  await new Promise((resolve) =>
+    client.on('close', () => {
+      console.warn('[email] IMAP connection closed');
+      resolve();
+    }),
+  );
+}
+
+async function run() {
+  for (;;) {
+    try {
+      await runOnce();
+    } catch (err) {
+      console.error('[email] connection error:', err.message);
+    }
+    await new Promise((r) => setTimeout(r, 15000));
+    console.log('[email] reconnecting…');
   }
 }
 
-start().catch((err) => console.error('[email] fatal:', err.message));
+run().catch((err) => console.error('[email] fatal:', err.message));
