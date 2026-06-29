@@ -6,7 +6,7 @@
 
 ## What Sovereign does, in one minute
 
-All day, messages arrive from many places — WhatsApp, Telegram, email, SMS. Most of them are not urgent, but each one still pulls at your attention.
+All day, messages arrive from many places — WhatsApp, Instagram, Telegram, email, SMS. Most of them are not urgent, but each one still pulls at your attention.
 
 Sovereign sits quietly between those apps and you. It reads every incoming message and asks one question:
 
@@ -58,11 +58,12 @@ Sovereign watches several platforms, but they don't all work the same way. Here'
 | Platform | How someone contacts you | Invisible to them? |
 |---|---|---|
 | **WhatsApp** | They message your **real WhatsApp number**, as usual. | ✅ Yes |
+| **Instagram** | They DM your **real Instagram account**, as usual. | ✅ Yes |
 | **Email** | They email your **real address**, as usual. | ✅ Yes |
 | **SMS** | They text **your number** (the one your SMS setup uses). | ✅ Yes |
 | **Telegram** | They message your **bot** (e.g. `@staysovereignbot`) — *not* your personal Telegram. | ❌ No (it's a bot) |
 
-On WhatsApp, email, and SMS, people message the real you and Sovereign stays completely invisible — they never know it's there.
+On WhatsApp, Instagram, email, and SMS, people message the real you and Sovereign stays completely invisible — they never know it's there.
 
 ### The Telegram difference
 
@@ -72,7 +73,7 @@ Telegram works through a **bot**, which is its own account — separate from you
 - **Groups:** the bot only sees a group's messages if you **add the bot to that group** *and* turn off its privacy setting (via Telegram's BotFather: `/setprivacy` → your bot → **Disable**). Otherwise it only sees messages that @mention or reply to the bot.
 - The bot **cannot** read messages sent to your *personal* Telegram account — only messages sent to the bot itself.
 
-> **In short:** on WhatsApp, email, and SMS, people message the real you. On Telegram, they message your bot. For most people that's fine — Telegram tends to be groups and a handful of contacts, while WhatsApp usually carries the personal conversations.
+> **In short:** on WhatsApp, Instagram, email, and SMS, people message the real you. On Telegram, they message your bot. For most people that's fine — Telegram tends to be groups and a handful of contacts, while WhatsApp usually carries the personal conversations.
 
 And remember: on *every* platform, group messages are held by default (the "Hold all group messages" Decree). So adding the bot to busy groups won't flood your phone — those messages simply wait in the Vault.
 
@@ -95,7 +96,7 @@ After setting your password, Sovereign asks you a single question:
 This becomes your **Council** (your VIP list). For each person you add:
 
 - **Name** — how you'll recognize them, e.g. `Mamá`, `Dr. López`, `Carlos`.
-- **Platform** — where they message you from: WhatsApp, Telegram, email, or SMS.
+- **Platform** — where they message you from: WhatsApp, Instagram, Telegram, email, or SMS.
 - **Sender ID** — *how that platform identifies them*:
   - Email → their email address, e.g. `mama@gmail.com`
   - SMS / WhatsApp → their phone number with country code, e.g. `+573001234567`

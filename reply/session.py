@@ -20,7 +20,7 @@ def platform_chat_id_for(message: NormalizedMessage) -> str:
 
     if platform == "telegram":
         return str(meta.get("chat_id") or message.sender.id)
-    if platform == "whatsapp":
+    if platform in ("whatsapp", "instagram"):
         return str(meta.get("room_id") or message.sender.id)
     if platform == "email":
         return message.sender.email or message.sender.id

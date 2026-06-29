@@ -26,7 +26,10 @@
       "Bash(awk '{print $1, $3, $NF}')",
       "Bash(docker compose exec -T core python3 -c ' *)",
       "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost/)",
-      "Bash(echo \"interface: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost/\\)\")"
+      "Bash(echo \"interface: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost/\\)\")",
+      "WebFetch(domain:docs.mau.fi)",
+      "Bash(awk '/^permissions:/{f=1} f{print NR\": \"$0} f&&/^[a-z]/&&!/^permissions:/{exit}' mautrix-meta/config.yaml)",
+      "Bash(chmod 644 mautrix-meta/registration.yaml)"
     ]
   }
 }

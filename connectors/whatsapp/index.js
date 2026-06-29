@@ -87,11 +87,15 @@ async function isGroupRoom(roomId) {
     const state = await api('GET', `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state`);
     const bridge = state.find((e) => e.type === 'm.bridge' || e.type === 'uk.half-shot.bridge');
     if (bridge && bridge.content) {
+      // com.beeper.room_type is the cross-platform signal both mautrix bridges
+      // set: "dm" for a 1:1, anything else is a group. Fall back to the WhatsApp
+      // chat JID (only @s.whatsapp.net is a real 1:1; @g.us / @newsletter /
+      // status broadcasts / spaces are held like groups).
+      const roomType = bridge.content['com.beeper.room_type'];
       const jid = (bridge.content.channel && bridge.content.channel.id) || '';
-      // Only a real 1:1 chat (@s.whatsapp.net) is treated as a DM. Everything
-      // else — groups (@g.us), newsletters/channels (@newsletter), status
-      // broadcasts, filtering spaces — is held like a group by default.
-      if (jid.endsWith('@s.whatsapp.net')) isGroup = false;
+      if (roomType === 'dm') isGroup = false;
+      else if (roomType) isGroup = true;
+      else if (jid.endsWith('@s.whatsapp.net')) isGroup = false;
       else if (jid) isGroup = true;
     }
   } catch { /* fall through to heuristic */ }
@@ -101,7 +105,7 @@ async function isGroupRoom(roomId) {
     // member too, so a 1:1 DM has 2 — treat more than 2 as a group.
     try {
       const data = await api('GET', `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/joined_members`);
-      const wa = Object.keys(data.joined || {}).filter((u) => u.startsWith('@whatsapp_'));
+      const wa = Object.keys(data.joined || {}).filter((u) => u.startsWith('@whatsapp_') || u.startsWith('@meta_'));
       isGroup = wa.length > 2;
     } catch { isGroup = false; }
   }
@@ -115,25 +119,30 @@ async function handleEvent(roomId, ev) {
   const sender = ev.sender;
   const content = ev.content || {};
   if (!sender || !content.msgtype) return;
-  // Only messages authored by WhatsApp users (puppets). This excludes our own
-  // @sovereign messages and the @whatsappbot control/notice messages.
-  if (!sender.startsWith('@whatsapp_')) return;
+  // Only messages authored by bridge puppets (the other party) — this excludes
+  // our own @sovereign messages and the bridge bots' notices.
+  //   @whatsapp_* → WhatsApp   ·   @meta_* → Instagram (mautrix-meta, instagram mode)
+  const platform = sender.startsWith('@whatsapp_') ? 'whatsapp'
+    : sender.startsWith('@meta_') ? 'instagram'
+    : null;
+  if (!platform) return;
   // Skip history/backfill — only handle freshly arrived messages.
   if (ev.origin_server_ts && ev.origin_server_ts < startedAt - 60000) return;
 
-  const m = sender.match(/^@whatsapp_(\d+):/);
+  // WhatsApp puppet MXIDs encode the phone number; Instagram ones don't.
+  const m = platform === 'whatsapp' ? sender.match(/^@whatsapp_(\d+):/) : null;
   const phone = m ? `+${m[1]}` : null;
 
   let name = null;
   try {
     const prof = await api('GET', `/_matrix/client/v3/profile/${encodeURIComponent(sender)}`);
-    name = (prof.displayname || '').replace(/\s*\(WA\)\s*$/, '') || null;
+    name = (prof.displayname || '').replace(/\s*\(WA\)\s*$/, '').trim() || null;
   } catch { /* ignore */ }
 
   const group = (await isGroupRoom(roomId)) ? roomId : null;
 
   const normalized = buildMessage({
-    platform: 'whatsapp',
+    platform,
     sender: { id: sender, name, phone },
     content: contentFromEvent(content),
     group,
@@ -143,13 +152,18 @@ async function handleEvent(roomId, ev) {
   try {
     await dispatch(normalized);
   } catch (err) {
-    console.error('[whatsapp] dispatch failed:', err.message);
+    console.error(`[${platform}] dispatch failed:`, err.message);
   }
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function syncLoop() {
-  let since = readSince();
-  console.log(`[whatsapp] Matrix sync starting (resuming=${since ? 'yes' : 'no'})…`);
+  // Always begin with a full sync (since=null): it lists *all* current room
+  // invites — incremental sync won't re-deliver an invite we previously failed
+  // to join — while still skipping the message backlog. Then go incremental.
+  let since = null;
+  console.log('[bridge] Matrix sync starting (full sync to catch all invites)…');
 
   for (;;) {
     let data;
@@ -163,13 +177,23 @@ async function syncLoop() {
 
     const rooms = data.rooms || {};
 
-    // Auto-accept invites — the bridge invites us to each portal room.
+    // Auto-accept invites — the bridge invites us to each portal room. A large
+    // backfill (e.g. Instagram) can create many portals at once, so join gently
+    // and honor Synapse rate limits (429) with retry — otherwise joins fail and
+    // those chats never reach us.
     for (const roomId of Object.keys(rooms.invite || {})) {
-      try {
-        await api('POST', `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/join`);
-        console.log('[whatsapp] joined portal room', roomId);
-      } catch (err) {
-        console.error('[whatsapp] join failed', roomId, err.message);
+      for (let attempt = 0; attempt < 6; attempt++) {
+        try {
+          await api('POST', `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/join`);
+          console.log('[bridge] joined portal room', roomId);
+          await sleep(400); // pace joins to stay under the rate limit
+          break;
+        } catch (err) {
+          const m = /retry_after_ms"?:\s*(\d+)/.exec(err.message);
+          if (m) { await sleep(parseInt(m[1], 10) + 250); continue; } // 429 → wait & retry
+          console.error('[bridge] join failed', roomId, err.message);
+          break;
+        }
       }
     }
 

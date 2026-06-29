@@ -98,6 +98,7 @@ services:
     volumes:
       - synapse_data:/data
       - ./mautrix/registration.yaml:/data/appservices/whatsapp-registration.yaml:ro
+      - ./mautrix-meta/registration.yaml:/data/appservices/meta-registration.yaml:ro
     environment:
       - SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
     restart: unless-stopped
@@ -118,6 +119,21 @@ services:
     # Bind the host ./mautrix dir so config/registration are editable on the host.
     volumes:
       - ./mautrix:/data
+    depends_on:
+      synapse:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - sovereign
+
+  # ── mautrix-meta (Matrix ↔ Instagram / Messenger bridge) ─────────
+  # Configured for Instagram (mode: instagram). See docs/WHATSAPP_SETUP.md
+  # for the bridgev2 setup pattern; same flow, distinct appservice port (29319).
+  mautrix-meta:
+    image: dock.mau.dev/mautrix/meta:latest
+    profiles: [whatsapp]
+    volumes:
+      - ./mautrix-meta:/data
     depends_on:
       synapse:
         condition: service_healthy

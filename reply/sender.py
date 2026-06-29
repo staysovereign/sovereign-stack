@@ -17,8 +17,8 @@ async def send_reply(platform: str, chat_id: str, text: str) -> None:
     """
     if platform == "telegram":
         await _send_telegram(chat_id, text)
-    elif platform == "whatsapp":
-        await _send_whatsapp(chat_id, text)
+    elif platform in ("whatsapp", "instagram"):
+        await _send_matrix_room(chat_id, text)
     elif platform == "email":
         await _send_email(chat_id, text)
     elif platform == "sms":
@@ -44,15 +44,16 @@ async def _send_telegram(chat_id: str, text: str) -> None:
     log.info("[telegram] reply sent to chat_id=%s", chat_id)
 
 
-# ── WhatsApp (mautrix Matrix room) ────────────────────────────────────────────
+# ── WhatsApp / Instagram (mautrix Matrix room) ────────────────────────────────
 
-async def _send_whatsapp(room_id: str, text: str) -> None:
+async def _send_matrix_room(room_id: str, text: str) -> None:
     """
-    Send a message to a WhatsApp chat via the mautrix-whatsapp Matrix bridge.
+    Send a reply into a Matrix portal room — used for both WhatsApp and Instagram
+    (mautrix-whatsapp / mautrix-meta). The bridge relays it to the remote network.
 
     Requires:
       MATRIX_HOMESERVER_URL  — e.g. http://synapse:8008
-      MATRIX_ACCESS_TOKEN    — bot/appservice token from mautrix registration
+      MATRIX_ACCESS_TOKEN    — the @sovereign user's access token
     """
     homeserver = os.environ.get("MATRIX_HOMESERVER_URL")
     token = os.environ.get("MATRIX_ACCESS_TOKEN")
@@ -70,7 +71,7 @@ async def _send_whatsapp(room_id: str, text: str) -> None:
             timeout=10,
         )
         res.raise_for_status()
-    log.info("[whatsapp] reply sent to room_id=%s", room_id)
+    log.info("reply sent to Matrix room %s", room_id)
 
 
 # ── Email ─────────────────────────────────────────────────────────────────────

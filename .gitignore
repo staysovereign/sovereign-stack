@@ -46,6 +46,11 @@ mautrix/*.legacy
 mautrix/*.db
 mautrix/*.db-wal
 mautrix/*.db-shm
+mautrix-meta/config.yaml
+mautrix-meta/registration.yaml
+mautrix-meta/*.db
+mautrix-meta/*.db-wal
+mautrix-meta/*.db-shm
 backups/
 .backups/
 

@@ -1,6 +1,8 @@
-# WhatsApp Bridge Setup (Matrix + mautrix-whatsapp)
+# Matrix Bridge Setup — WhatsApp & Instagram (mautrix)
 
-This is the **most involved** connector to set up, but once done it's the most powerful: WhatsApp messages reach the real you, transparently, and Sovereign filters them like any other platform.
+This is the **most involved** connector to set up, but once done it's the most powerful: WhatsApp and Instagram messages reach the real you, transparently, and Sovereign filters them like any other platform.
+
+> Most of this guide sets up **WhatsApp** (mautrix-whatsapp). **Instagram** reuses the *same* Synapse and Sovereign connector via a second bridge (mautrix-meta) — see **[Adding Instagram](#adding-instagram-mautrix-meta)** at the end, once WhatsApp works.
 
 WhatsApp has no official self-hosting API, so Sovereign bridges it through **Matrix**:
 
@@ -197,3 +199,103 @@ The connector logs `Matrix sync starting` and will `joined portal room …` as y
 | Pairing fails: `missing <link_code_pairing_wrapped_primary_ephemeral_pub>` | Code entered too late. Re-run Step 8 and enter the fresh code within ~60 s. |
 | Connector idle / not forwarding | `MATRIX_ACCESS_TOKEN` not set in `.env` (Step 7), or you started without `--profile whatsapp`. |
 | Nothing happens on the first message to a new contact | Expected — send a second message (portal-creation timing). |
+
+---
+
+## Adding Instagram (mautrix-meta)
+
+Instagram uses **mautrix-meta** (the bridge that replaced mautrix-instagram / mautrix-facebook). It reuses the **same Synapse** and the **same Sovereign connector** as WhatsApp — you're just adding a second bridge. Do this after WhatsApp is working.
+
+> ⚠️ **Risk:** mautrix-meta logs into Instagram with your **session cookies** via Instagram's unofficial API. Instagram can challenge or disable the account; there's no official API for personal DMs. Enable 2FA on the account to reduce blocks.
+
+The `mautrix-meta` service is already defined in `docker-compose.yml` (Instagram mode, appservice port **29319**, bound to `./mautrix-meta`).
+
+### 1. Generate and configure the bridge config
+
+```bash
+docker compose --profile whatsapp run --rm mautrix-meta          # writes ./mautrix-meta/config.yaml
+docker compose --profile whatsapp run --rm --user root --entrypoint chown mautrix-meta -R "$(id -u):$(id -g)" /data
+```
+
+Edit `./mautrix-meta/config.yaml`:
+
+```yaml
+network:
+    mode: instagram                         # connect to Instagram DMs
+
+database:
+    type: sqlite3-fk-wal
+    uri: file:/data/mautrix-meta.db?_txlock=immediate
+
+homeserver:
+    address: http://synapse:8008
+    domain: sovereign.local
+
+appservice:
+    address: http://mautrix-meta:29319
+    hostname: 0.0.0.0
+    port: 29319
+
+    permissions:
+        "sovereign.local": user
+        "@sovereign:sovereign.local": admin
+```
+
+### 2. Generate the registration & wire it into Synapse
+
+```bash
+docker compose --profile whatsapp run --rm mautrix-meta          # writes ./mautrix-meta/registration.yaml
+docker compose --profile whatsapp run --rm --user root --entrypoint chown mautrix-meta -R "$(id -u):$(id -g)" /data
+chmod 644 mautrix-meta/registration.yaml                          # Synapse (UID 991) must read it
+```
+
+Add the meta registration to Synapse's appservice list in `synapse/homeserver.yaml`:
+
+```yaml
+app_service_config_files:
+  - /data/appservices/whatsapp-registration.yaml
+  - /data/appservices/meta-registration.yaml
+```
+
+The Synapse service already mounts `./mautrix-meta/registration.yaml` → `/data/appservices/meta-registration.yaml`. Copy the updated config into the Synapse volume and restart, then start the bridge:
+
+```bash
+docker compose --profile whatsapp run --rm --user root --entrypoint sh \
+  -v "$(pwd)/synapse/homeserver.yaml:/seed/homeserver.yaml:ro" \
+  synapse -c 'cp /seed/homeserver.yaml /data/homeserver.yaml && chown 991:991 /data/homeserver.yaml'
+docker compose --profile whatsapp up -d --force-recreate synapse
+docker compose --profile whatsapp up -d mautrix-meta
+docker compose logs mautrix-meta | grep -i "Bridge started"
+```
+
+### 3. Log in with Instagram cookies
+
+From a browser logged into instagram.com, open DevTools → **Application → Cookies → https://www.instagram.com** and copy the values of `sessionid`, `csrftoken`, `mid`, `ig_did`, `ds_user_id`. Submit them via the provisioning API:
+
+```bash
+SECRET=$(docker compose exec -T mautrix-meta cat /data/config.yaml | grep -E 'shared_secret:' | head -1 | awk '{print $2}')
+docker compose exec -T core python3 - "$SECRET" <<'PY'
+import sys, json, urllib.request, urllib.parse
+sec=sys.argv[1]; uid=urllib.parse.quote('@sovereign:sovereign.local')
+def call(method, path, body=None):
+    url='http://mautrix-meta:29319'+path+'?user_id='+uid
+    data=json.dumps(body).encode() if body is not None else (b'{}' if method=='POST' else None)
+    req=urllib.request.Request(url, method=method, headers={'Authorization':'Bearer '+sec,'Content-Type':'application/json'}, data=data)
+    return urllib.request.urlopen(req).read().decode()
+start=json.loads(call('POST','/_matrix/provision/v3/login/start/instagram'))
+lid, sid = start['login_id'], start['step_id']
+cookies={"sessionid":"PASTE","csrftoken":"PASTE","mid":"PASTE","ig_did":"PASTE","ds_user_id":"PASTE"}
+print(call('POST','/_matrix/provision/v3/login/step/'+lid+'/'+sid+'/cookies', cookies))
+PY
+```
+
+A `"type":"complete"` response means you're logged in. (Alternative: log into Synapse as `@sovereign` with a Matrix client like Element, DM `@metabot:sovereign.local`, send `login`, and paste a "Copy as cURL" of an instagram.com `graphql` request.)
+
+### That's it
+
+No connector changes are needed — the Sovereign connector already forwards Instagram (`@meta_*`) puppets and routes replies back, exactly like WhatsApp. Start everything with `docker compose --profile whatsapp up -d` and Instagram DMs flow into the Vault / Decrees / Council like every other platform.
+
+**Notes:**
+- Instagram contacts have **no phone number**, so to add one to your **Council** match by their bridge id (`@meta_…`) rather than a phone — easiest after they've messaged you once (you'll see them in the Chronicle).
+- `cannot change members for DM` lines in the mautrix-meta log are harmless (logged when `@sovereign` joins a DM portal).
+- A large first sync creates many portals at once; the connector paces its joins to stay under Synapse's rate limit.

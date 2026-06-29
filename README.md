@@ -3,7 +3,7 @@
 
 > Reclaim the right to be unreachable.
 
-Sovereign is a self-hosted communication router. Messages arrive from all your platforms — WhatsApp, Telegram, Email, SMS — pass through an urgency evaluation engine, and either reach you immediately via SMS on a dumb phone, or wait quietly in the Vault until you choose to engage.
+Sovereign is a self-hosted communication router. Messages arrive from all your platforms — WhatsApp, Instagram, Telegram, Email, SMS — pass through an urgency evaluation engine, and either reach you immediately via SMS on a dumb phone, or wait quietly in the Vault until you choose to engage.
 
 It is not a notification manager. It is a filter with a philosophy.
 
@@ -13,7 +13,8 @@ It is not a notification manager. It is a filter with a philosophy.
 
 ```
 [WhatsApp]  ─┐
-[Telegram]  ─┤   connectors/    →   core (urgency engine)   →   SMS → dumb phone
+[Instagram] ─┤
+[Telegram]  ─┼   connectors/    →   core (urgency engine)   →   SMS → dumb phone
 [Email]     ─┤   (Node.js)          (Python / FastAPI)           ↑
 [SMS]       ─┘                           │                       └── reply routing
                                          ↓
@@ -69,15 +70,15 @@ Open the interface at **http://localhost**. On first load, Sovereign asks you on
 
 > 📖 **New to Sovereign?** The [User Guide](docs/USER_GUIDE.md) explains every screen and how to configure it, in plain language with examples — written for non-technical users.
 
-### With WhatsApp
+### With WhatsApp & Instagram (Matrix bridges)
 
-WhatsApp is bridged through a private Matrix homeserver (Synapse) + the mautrix-whatsapp bridge, so the real you stays reachable and Sovereign filters transparently. It's a few guided steps (generate the bridge config, register it, create the Matrix user, link WhatsApp with a pairing code):
+WhatsApp and Instagram are bridged through a private Matrix homeserver (Synapse) plus mautrix bridges (mautrix-whatsapp and mautrix-meta), so the real you stays reachable and Sovereign filters transparently. A few guided steps each — generate the bridge config, register it, create the Matrix user, and link your account (WhatsApp via a pairing code, Instagram via session cookies):
 
 ```bash
-./setup.sh --whatsapp            # prepares the Synapse config
+./setup.sh --whatsapp            # prepares the shared Synapse config
 ```
 
-> 📖 Then follow the **[WhatsApp Bridge Setup guide](docs/WHATSAPP_SETUP.md)** — a complete, step-by-step walkthrough with troubleshooting.
+> 📖 Then follow the **[Matrix Bridge Setup guide](docs/WHATSAPP_SETUP.md)** — a complete, step-by-step walkthrough for both bridges, with troubleshooting.
 
 Once linked, always start the stack **with the whatsapp profile** so Synapse and the bridge run too:
 
@@ -109,10 +110,10 @@ Seven layers, built in order:
 |---|---|---|
 | Telegram | Official Bot API (polling) | ✅ |
 | Email | IMAP IDLE | ✅ |
-| WhatsApp | mautrix-whatsapp Matrix bridge | ✅ stub |
+| WhatsApp | mautrix-whatsapp Matrix bridge | ✅ |
 | SMS | Twilio webhook | ✅ |
-| Instagram | Unofficial | ⏳ V2 |
-| Facebook Messenger | Meta Business API | ⏳ V2 |
+| Instagram | mautrix-meta Matrix bridge | ✅ |
+| Facebook Messenger | mautrix-meta (messenger mode) | ⏳ same bridge, not enabled |
 
 ---
 
@@ -128,7 +129,7 @@ TWILIO_AUTH_TOKEN=xxx
 TWILIO_PHONE_NUMBER=+1987654321
 ```
 
-For WhatsApp, you additionally need to run the mautrix-whatsapp bridge and set `WHATSAPP_BRIDGE_SECRET` and `MATRIX_*` variables. See the spec for full bridge setup.
+For WhatsApp and Instagram, you additionally run the Matrix bridges (Synapse + mautrix-whatsapp / mautrix-meta); the `@sovereign` user's `MATRIX_ACCESS_TOKEN` is created during setup. See the **[Matrix Bridge Setup guide](docs/WHATSAPP_SETUP.md)**.
 
 ### Email connector tuning
 
@@ -231,7 +232,7 @@ make status         # Show running containers and health
 make backup         # Dump SQLite DB to ./backups/
 make update         # Pull latest images and rebuild
 make ollama-pull    # Pull the Ollama LLM model
-make whatsapp-qr    # Re-display WhatsApp QR code
+make whatsapp-qr    # Tail the bridge logs (WhatsApp pairing / login)
 ```
 
 ---
@@ -242,7 +243,7 @@ make whatsapp-qr    # Re-display WhatsApp QR code
 |---|---|
 | Core engine | Python 3.12 + FastAPI |
 | Platform connectors | Node.js 22 + Express |
-| WhatsApp bridge | mautrix-whatsapp (Go) |
+| WhatsApp / Instagram bridges | mautrix-whatsapp + mautrix-meta (Go) |
 | Database | SQLite (WAL mode) |
 | AI / Advisor | Ollama (local LLM — never cloud) |
 | SMS gateway | Twilio API / Android phone (HTTP) / gammu (USB GSM modem) |
