@@ -208,21 +208,17 @@ Sovereign sends a confirmation SMS back after each command.
 
 ---
 
-## Deployment paths
+## Deployment
 
-| Path | Who | Cost | Control |
-|---|---|---|---|
-| **Self-hosted** | Technical users | Free | Full sovereignty |
-| **Managed cloud** | Anyone | €4.90/month | Zero maintenance |
-| **Hybrid** | Power users | Partial | Local data, cloud infra |
+Sovereign has one deployment model: your server, your machine, your rules. There is no managed cloud, no subscription, no company holding your messages. That is not a missing feature. It is the point.
 
-### Self-hosted hardware options
+### Hardware options
 
 | Option | Cost | Notes |
 |---|---|---|
 | VPS (2 GB RAM) | ~€5/month | Recommended for most users |
 | Home server / old laptop | One-time | Always-on required |
-| Raspberry Pi 4 + USB GSM modem | ~€60 one-time | Full sovereignty — no Twilio |
+| Raspberry Pi 4 + USB GSM modem | ~€60 one-time | Full sovereignty. SMS from your own SIM via gammu, no Twilio needed |
 
 ### Common operations
 
@@ -233,6 +229,7 @@ make backup         # Dump SQLite DB to ./backups/
 make update         # Pull latest images and rebuild
 make ollama-pull    # Pull the Ollama LLM model
 make whatsapp-qr    # Tail the bridge logs (WhatsApp pairing / login)
+make up-whatsapp    # Start full stack with WhatsApp and Instagram bridges
 ```
 
 ---
@@ -246,9 +243,9 @@ make whatsapp-qr    # Tail the bridge logs (WhatsApp pairing / login)
 | WhatsApp / Instagram bridges | mautrix-whatsapp + mautrix-meta (Go) |
 | Database | SQLite (WAL mode) |
 | AI / Advisor | Ollama (local LLM — never cloud) |
-| SMS gateway | Twilio API / Android phone (HTTP) / gammu (USB GSM modem) |
-| Interface | React + Vite *(Layer 6)* |
-| Deployment | Docker Compose |
+| SMS gateway | Twilio / InfiniReach / Android HTTP / gammu (USB GSM modem) |
+| Interface | React + Vite |
+| Deployment | Docker Compose + setup.sh + Makefile |
 | License | AGPL-3.0 |
 
 ---
@@ -264,6 +261,14 @@ make whatsapp-qr    # Tail the bridge logs (WhatsApp pairing / login)
 ## License
 
 [AGPL-3.0](LICENSE) — anyone can run it, modify it, and must keep modifications open source. Commercial use requires contribution back.
+
+---
+
+## Community
+
+- [Wiki](../../wiki) — full documentation: installation, platform setup, Decrees guide, troubleshooting
+- [Discussions](../../discussions) — the Commonwealth: setups, Decree sharing, questions, philosophy
+- [staysovereign.io](https://staysovereign.io) — project home
 
 ---
 
