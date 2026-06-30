@@ -169,7 +169,22 @@ PY
 
 On success the bridge logs `Login completed successfully` and `Connected to WhatsApp socket`.
 
-## Step 9 — Bring up the whole stack
+## Step 9 — Tell Sovereign to ignore your own messages (`BRIDGE_SELF_IDS`)
+
+The bridge echoes messages **you** send back into the portal room (attributed to your own puppet). Without telling Sovereign which account is *you*, a trigger word in your *own* outgoing message would ping your phone. Add your linked account's id to `.env`:
+
+```env
+# WhatsApp = your linked number's digits (no +). Comma-separate multiple accounts.
+BRIDGE_SELF_IDS=573001234567
+```
+
+Your WhatsApp id is the number you linked; it also appears in the bridge logs as `login_id=…`. (You'll add your **Instagram** id here too — see the Instagram section.) Restart the connector after changing it:
+
+```bash
+docker compose --profile whatsapp up -d connectors
+```
+
+## Step 10 — Bring up the whole stack
 
 From now on, always start Sovereign **with the whatsapp profile** so Synapse + the bridge run alongside everything else:
 
@@ -199,6 +214,7 @@ The connector logs `Matrix sync starting` and will `joined portal room …` as y
 | Pairing fails: `missing <link_code_pairing_wrapped_primary_ephemeral_pub>` | Code entered too late. Re-run Step 8 and enter the fresh code within ~60 s. |
 | Connector idle / not forwarding | `MATRIX_ACCESS_TOKEN` not set in `.env` (Step 7), or you started without `--profile whatsapp`. |
 | Nothing happens on the first message to a new contact | Expected — send a second message (portal-creation timing). |
+| You get pinged by messages **you** sent | Add your account id to `BRIDGE_SELF_IDS` (Step 9) and restart the connector. |
 
 ---
 
@@ -296,6 +312,7 @@ A `"type":"complete"` response means you're logged in. (Alternative: log into Sy
 No connector changes are needed — the Sovereign connector already forwards Instagram (`@meta_*`) puppets and routes replies back, exactly like WhatsApp. Start everything with `docker compose --profile whatsapp up -d` and Instagram DMs flow into the Vault / Decrees / Council like every other platform.
 
 **Notes:**
+- **Add your Instagram id to `BRIDGE_SELF_IDS`** (the numeric id from the login line, e.g. `17842237635275588`) alongside your WhatsApp number, so DMs *you* send don't ping your own phone. Restart the connector afterward.
 - Instagram contacts have **no phone number**, so to add one to your **Council** match by their bridge id (`@meta_…`) rather than a phone — easiest after they've messaged you once (you'll see them in the Chronicle).
 - `cannot change members for DM` lines in the mautrix-meta log are harmless (logged when `@sovereign` joins a DM portal).
 - A large first sync creates many portals at once; the connector paces its joins to stay under Synapse's rate limit.

@@ -23,6 +23,10 @@ const HS = (process.env.MATRIX_HOMESERVER_URL || '').replace(/\/$/, '');
 const TOKEN = process.env.MATRIX_ACCESS_TOKEN;
 const DOMAIN = process.env.MATRIX_SERVER_NAME || 'sovereign.local';
 const STORE = process.env.MATRIX_SYNC_STORE || '/data/whatsapp-sync-token';
+// Your own linked account IDs (WhatsApp number / Instagram user id). Messages
+// you send yourself are bridged into the portal as your own puppet; without this
+// list they'd be ingested — and could trigger alerts to your own phone.
+const SELF_IDS = (process.env.BRIDGE_SELF_IDS || '').split(',').map((s) => s.trim()).filter(Boolean);
 
 if (!HS || !TOKEN) {
   console.warn('[whatsapp] MATRIX_HOMESERVER_URL / MATRIX_ACCESS_TOKEN not set — connector idle');
@@ -114,6 +118,14 @@ async function isGroupRoom(roomId) {
   return isGroup;
 }
 
+// True if the message was sent by one of YOUR own linked accounts — Sovereign
+// governs messages sent *to* you, never the ones you send.
+function isOwnSender(sender) {
+  if (!SELF_IDS.length) return false;
+  const m = sender.match(/^@(?:whatsapp_(?:lid-)?|meta_)([^:]+):/);
+  return !!m && SELF_IDS.includes(m[1]);
+}
+
 async function handleEvent(roomId, ev) {
   if (ev.type !== 'm.room.message') return;
   const sender = ev.sender;
@@ -126,6 +138,7 @@ async function handleEvent(roomId, ev) {
     : sender.startsWith('@meta_') ? 'instagram'
     : null;
   if (!platform) return;
+  if (isOwnSender(sender)) return; // never act on your own outgoing messages
   // Skip history/backfill — only handle freshly arrived messages.
   if (ev.origin_server_ts && ev.origin_server_ts < startedAt - 60000) return;
 

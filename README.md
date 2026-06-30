@@ -129,7 +129,7 @@ TWILIO_AUTH_TOKEN=xxx
 TWILIO_PHONE_NUMBER=+1987654321
 ```
 
-For WhatsApp and Instagram, you additionally run the Matrix bridges (Synapse + mautrix-whatsapp / mautrix-meta); the `@sovereign` user's `MATRIX_ACCESS_TOKEN` is created during setup. See the **[Matrix Bridge Setup guide](docs/WHATSAPP_SETUP.md)**.
+For WhatsApp and Instagram, you additionally run the Matrix bridges (Synapse + mautrix-whatsapp / mautrix-meta); the `@sovereign` user's `MATRIX_ACCESS_TOKEN` is created during setup, and `BRIDGE_SELF_IDS` lists your own account ids so messages you send yourself aren't surfaced. See the **[Matrix Bridge Setup guide](docs/WHATSAPP_SETUP.md)**.
 
 ### Email connector tuning
 

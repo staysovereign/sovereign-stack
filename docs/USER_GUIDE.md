@@ -327,6 +327,9 @@ Nothing breaks. Worst case, a message goes to the Vault instead of your phone (o
 **Can someone reach me urgently without being in my Council?**
 Yes — in a **1:1 (direct) chat**, a message containing an urgency keyword (e.g. *urgent, hospital, llámame*) passes to your phone even if the sender isn't in your Council. The "Hold all group messages" rule only applies to **group** chats, so it doesn't block direct messages. Inside **groups**, though, only **Council members** get through (keywords alone won't pass there — otherwise anyone in a noisy group could ping you by typing "urgent").
 
+**Will Sovereign alert me about messages I send myself?**
+No. Sovereign only governs messages sent *to* you — anything you send is ignored, on every platform.
+
 **Can I start over?**
 Yes — reset the Advisor from its room, edit or disable any Decree, and add/remove Council members any time. It's your Realm.
 
