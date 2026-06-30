@@ -143,7 +143,10 @@ Your dashboard has five "rooms" — plus a small **Settings** tab — shown acro
 
 **To manage members:**
 - Toggle the switch next to a member to turn their "always on" (quiet-hours override) on or off.
-- Click **Remove** to take someone off the list.
+- Click **Mute** to temporarily switch someone off *without removing them* (see below).
+- Click **Remove** to take someone off the list for good.
+
+**Mute — switch someone off without deleting them:** Sometimes you don't want a Council member breaking through *just by being them* for a while — but you don't want to lose them from the list either. **Mute** does exactly that: a muted member stays on your Council (greyed out, marked *muted*), but their messages are no longer auto-passed. Instead they fall through to **the Decrees** like anyone else — so they only reach your phone if they write something the **Urgency keywords** decree catches; otherwise the message waits calmly in the **Vault**. Tap **Unmute** any time to re-seat them. It's the reversible middle ground between *always reaches me* and *deleted*.
 
 **A gentle limit:** Around 10 members, Sovereign reminds you that *"an unlimited Council is no Council."* It won't stop you — it just nudges you to keep the list meaningful.
 

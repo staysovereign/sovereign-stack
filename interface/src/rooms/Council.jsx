@@ -43,6 +43,11 @@ export default function Council() {
     load();
   }
 
+  async function toggleMute(member) {
+    await api.councilUpdate(member.id, { muted: !member.muted }).catch((e) => setError(e.message));
+    load();
+  }
+
   async function handleRemove(id) {
     if (!confirm("Remove this member from your Council?")) return;
     await api.councilRemove(id).catch((e) => setError(e.message));
@@ -99,20 +104,36 @@ export default function Council() {
       ) : (
         <div className="card" style={{ padding: "0 1.25rem" }}>
           {data.members.map((m) => (
-            <div key={m.id} className="council-member">
-              <div>
+            <div key={m.id} className={`council-member${m.muted ? " is-muted" : ""}`}>
+              <div style={m.muted ? { opacity: 0.5 } : undefined}>
                 <div className="council-name">{m.name}</div>
                 <div className="council-detail">{m.platform} · {m.sender_id}</div>
-                {m.quiet_hours_override && <span className="badge" style={{ marginTop: "0.25rem" }}>always on</span>}
+                <div className="row" style={{ gap: "0.4rem", marginTop: "0.25rem" }}>
+                  {m.muted
+                    ? <span className="badge" title="Skipped at The Council — governed by the Decrees instead">muted</span>
+                    : m.quiet_hours_override && <span className="badge">always on</span>}
+                </div>
               </div>
               <div className="council-actions">
-                <input
-                  type="checkbox"
-                  className="toggle"
-                  checked={m.quiet_hours_override}
-                  onChange={() => toggleOverride(m)}
-                  title="Always deliver during quiet hours"
-                />
+                {!m.muted && (
+                  <input
+                    type="checkbox"
+                    className="toggle"
+                    checked={m.quiet_hours_override}
+                    onChange={() => toggleOverride(m)}
+                    title="Always deliver during quiet hours"
+                  />
+                )}
+                <button
+                  className="btn btn-ghost"
+                  style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
+                  onClick={() => toggleMute(m)}
+                  title={m.muted
+                    ? "Re-seat: their messages reach you directly again"
+                    : "Mute: keep them on the Council but route their messages through the Decrees"}
+                >
+                  {m.muted ? "Unmute" : "Mute"}
+                </button>
                 <button className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem", color: "var(--danger)", borderColor: "var(--danger)" }} onClick={() => handleRemove(m.id)}>
                   Remove
                 </button>

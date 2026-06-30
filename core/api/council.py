@@ -20,18 +20,20 @@ class MemberIn(BaseModel):
 class MemberUpdate(BaseModel):
     name: str | None = None
     quiet_hours_override: bool | None = None
+    muted: bool | None = None
 
 
 @router.get("")
 async def list_council():
     async with get_db() as db:
         rows = await (await db.execute(
-            "SELECT id, platform, sender_id, name, quiet_hours_override, created_at "
+            "SELECT id, platform, sender_id, name, quiet_hours_override, muted, created_at "
             "FROM council ORDER BY name ASC"
         )).fetchall()
     members = [dict(r) for r in rows]
     for m in members:
         m["quiet_hours_override"] = bool(m["quiet_hours_override"])
+        m["muted"] = bool(m["muted"])
     return {"members": members, "count": len(members), "soft_cap": _SOFT_CAP}
 
 
@@ -74,6 +76,11 @@ async def update_member(member_id: int, body: MemberUpdate):
             await db.execute(
                 "UPDATE council SET quiet_hours_override = ? WHERE id = ?",
                 (int(body.quiet_hours_override), member_id),
+            )
+        if body.muted is not None:
+            await db.execute(
+                "UPDATE council SET muted = ? WHERE id = ?",
+                (int(body.muted), member_id),
             )
         await db.commit()
     return {"status": "updated"}

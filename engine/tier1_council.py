@@ -9,7 +9,10 @@ from engine.result import Decision, EngineResult, Tier
 async def evaluate(message: NormalizedMessage, db: aiosqlite.Connection) -> EngineResult | None:
     """
     Tier 1: The Council.
-    If the sender is on the Council for their platform, the message passes immediately.
+    If the sender is on the Council for their platform AND not muted, the message
+    passes immediately. A muted member stays on the list but is skipped here, so
+    their messages fall through to Tier 2 (the Decrees) like any normal sender —
+    a temporary, reversible way to switch someone off without deleting them.
 
     Members are matched by their platform sender id OR, when available, their phone
     number. The phone match is essential for WhatsApp: there the sender id is a
@@ -24,7 +27,7 @@ async def evaluate(message: NormalizedMessage, db: aiosqlite.Connection) -> Engi
 
     row = await (
         await db.execute(
-            f"SELECT id, name FROM council WHERE platform = ? AND sender_id IN ({placeholders})",
+            f"SELECT id, name FROM council WHERE platform = ? AND muted = 0 AND sender_id IN ({placeholders})",
             (message.platform.value, *candidates),
         )
     ).fetchone()

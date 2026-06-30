@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS council (
     sender_id            TEXT NOT NULL,
     name                 TEXT NOT NULL,
     quiet_hours_override INTEGER NOT NULL DEFAULT 0,
+    muted                INTEGER NOT NULL DEFAULT 0,
     created_at           TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(platform, sender_id)
 )
@@ -229,11 +230,24 @@ async def init_db() -> None:
         await db.execute(_CREATE_DELIVERY_HELD)
         await db.execute(_CREATE_AUTH)
         await db.commit()
+        await _migrate(db)
         await db.execute("INSERT OR IGNORE INTO auth (id) VALUES (1)")
         await db.commit()
         await _seed_decrees(db)
         await _seed_settings(db)
         await _seed_advisor_state(db)
+
+
+async def _migrate(db: aiosqlite.Connection) -> None:
+    """Idempotent schema migrations for databases created before a column existed."""
+    await _ensure_column(db, "council", "muted", "muted INTEGER NOT NULL DEFAULT 0")
+    await db.commit()
+
+
+async def _ensure_column(db: aiosqlite.Connection, table: str, column: str, decl: str) -> None:
+    cols = [r[1] for r in await (await db.execute(f"PRAGMA table_info({table})")).fetchall()]
+    if column not in cols:
+        await db.execute(f"ALTER TABLE {table} ADD COLUMN {decl}")
 
 
 async def _seed_decrees(db: aiosqlite.Connection) -> None:
