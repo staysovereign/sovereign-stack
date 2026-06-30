@@ -8,7 +8,7 @@ import aiosqlite
 from core.db import get_db
 from core.delivery_queue import DeliveryItem, delivery_queue
 from delivery.formatter import format_sms
-from delivery.gateway import send
+from delivery.gateway import send, startup_check
 from delivery.quiet_hours import record_urgent_delivery, should_deliver
 
 log = logging.getLogger("sovereign.delivery")
@@ -21,6 +21,7 @@ async def run() -> None:
     Also periodically drains messages held during quiet hours once quiet hours end.
     """
     log.info("Delivery worker started")
+    await startup_check()
     async with get_db() as db:
         drain_task = asyncio.create_task(_drain_loop(db), name="delivery_drain")
         try:
@@ -76,19 +77,21 @@ async def _process(item: DeliveryItem, db: aiosqlite.Connection) -> None:
         log.info("SMS sent  [%s] %s", message.platform.value, message.sender.id)
         await _create_reply_session(message, sms_body, council_name, db)
     else:
-        log.error("SMS FAILED [%s] %s: %s", message.platform.value, message.sender.id, send_result.error)
         # Core guardrail: an urgent message that couldn't be delivered must not
         # vanish. It was PASSed, so it isn't in the Vault — hold it now so it
         # stays visible and recoverable instead of being silently dropped.
+        if send_result.gateway == "off":
+            log.info("SMS paused — holding urgent message in the Vault [%s] %s",
+                     message.platform.value, message.sender.id)
+            reason = "Urgent — SMS delivery is paused; kept in the Vault until a gateway is active"
+        else:
+            log.error("SMS FAILED [%s] %s: %s", message.platform.value, message.sender.id, send_result.error)
+            reason = f"Urgent, but SMS delivery failed ({send_result.error}); kept here so it isn't lost"
         from engine.result import Decision, EngineResult
         from engine.vault import store
         await store(
             message,
-            EngineResult(
-                decision=Decision.HOLD,
-                tier=result.tier,
-                reason=f"Urgent, but SMS delivery failed ({send_result.error}); kept here so it isn't lost",
-            ),
+            EngineResult(decision=Decision.HOLD, tier=result.tier, reason=reason),
             db,
         )
 

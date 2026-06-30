@@ -164,16 +164,26 @@ POST  https://<your-public-host>/infinireach/webhook
 
 The connectors port must be reachable from the internet (port-forward or a tunnel like ngrok/cloudflared). Optionally set `INFINIREACH_WEBHOOK_SECRET` and append `?secret=…` to the URL to reject unauthenticated calls. Outbound works without any of this; only replies need the public webhook.
 
-**Android phone gateway:** install an on-phone HTTP SMS-gateway app (e.g. the open-source *SMS Gateway for Android*) in **local server** mode, put the phone on the same network as Sovereign, then set:
+**Android phone gateway:** install an on-phone HTTP SMS-gateway app in **local server** mode, put the phone on the same network as Sovereign, then point `ANDROID_SMS_GATEWAY_URL` at the app's **full send endpoint**:
 
 ```env
 SMS_GATEWAY=android
-ANDROID_SMS_GATEWAY_URL=http://<phone-ip>:8080
-ANDROID_SMS_GATEWAY_USER=...
+ANDROID_SMS_GATEWAY_URL=http://<phone-ip>:8080/send-sms
+ANDROID_SMS_GATEWAY_USER=...   # only if your app requires auth
 ANDROID_SMS_GATEWAY_PASS=...
 ```
 
-The phone sends from its own SIM, so local-to-local SMS isn't subject to the foreign-number A2P filtering that blocks cloud providers in some countries — a good stand-in until a GSM modem arrives.
+Sovereign POSTs JSON `{"phone": "<dumb-phone-number>", "message": "<text>"}` to that exact URL and treats an HTTP `2xx` (without a `{"success": false}` body) as sent — so any gateway app exposing that contract works. The path varies by app (`/send-sms`, `/message`, …); use whatever endpoint your app documents. The phone sends from its own SIM, so local-to-local SMS isn't subject to the foreign-number A2P filtering that blocks cloud providers in some countries — a good stand-in until a GSM modem arrives.
+
+> **Keep the gateway phone reachable.** Because it runs over your LAN, the phone must be awake and on the network when an urgent SMS fires — keep it on power and exempt the app from battery optimization. If it's briefly unreachable a send fails, but the message is never lost: it falls back to the Vault.
+
+*Inbound replies (dumb phone → original chat).* Most local gateway apps (Simple SMS Gateway, Traccar SMS Gateway, …) are **send-only** — they can't forward the SMS the SIM *receives*, so your reply would never get back to WhatsApp/Instagram/etc. Pair the sender with a Play-Store **incoming-SMS forwarder** (e.g. *SMS Forwarder* / *AutoForwardText* — pick one that allows a plain-HTTP URL on a LAN IP) on the same phone, and point it at Sovereign:
+
+```
+POST  http://<this-host-lan-ip>:4000/android/webhook
+```
+
+Sovereign accepts the common forwarder payloads automatically (it reads the sender from `from`/`sender`/`phoneNumber`/… and the text from `message`/`text`/`body`/…). A text from the dumb phone is routed to `/reply` (sent back to the original chat); anything else is ingested as an inbound SMS. Optionally set `ANDROID_SMS_GATEWAY_WEBHOOK_SECRET` and append `?secret=…` to the URL. No public tunnel needed — both phone and host are on your LAN.
 
 ---
 

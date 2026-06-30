@@ -29,7 +29,11 @@
       "Bash(echo \"interface: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost/\\)\")",
       "WebFetch(domain:docs.mau.fi)",
       "Bash(awk '/^permissions:/{f=1} f{print NR\": \"$0} f&&/^[a-z]/&&!/^permissions:/{exit}' mautrix-meta/config.yaml)",
-      "Bash(chmod 644 mautrix-meta/registration.yaml)"
+      "Bash(chmod 644 mautrix-meta/registration.yaml)",
+      "WebSearch",
+      "WebFetch(domain:sms-gateway-api-simpapp.web.app)",
+      "WebFetch(domain:play.google.com)",
+      "WebFetch(domain:smsforward.app)"
     ]
   }
 }

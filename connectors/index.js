@@ -8,6 +8,7 @@ const PORT = process.env.CONNECTORS_PORT || 3000;
 // Webhook-based connectors mount as Express routers
 app.use('/sms', require('./sms/index'));
 app.use('/infinireach', require('./infinireach/index'));
+app.use('/android', require('./android/index'));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
