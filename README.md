@@ -224,11 +224,26 @@ Sovereign has one deployment model: your server, your machine, your rules. There
 
 ### Hardware options
 
+Run Sovereign only on **hardware you physically own**. This is deliberate — there is intentionally **no VPS/cloud option here**. Sovereign holds live, impersonation-grade **platform session tokens** (WhatsApp / Instagram / Telegram) and your full triaged **message history**. On rented infrastructure those bytes sit on someone else's computer, subject to their access and jurisdiction — which contradicts the whole promise. A VPS would give you software sovereignty but not data sovereignty; for this tool, that's not enough.
+
 | Option | Cost | Notes |
 |---|---|---|
-| VPS (2 GB RAM) | ~€5/month | Recommended for most users |
-| Home server / old laptop | One-time | Always-on required |
-| Raspberry Pi 4 + USB GSM modem | ~€60 one-time | Full sovereignty. SMS from your own SIM via gammu, no Twilio needed |
+| **Raspberry Pi 5 (8 GB) + GSM/LTE HAT** | ~€100 one-time | **Recommended appliance.** Full sovereignty — runs everything, SMS from your own SIM via gammu |
+| Old laptop / mini-PC / home server | Reuse what you own | Ideal if you already have one: capable, always-on, at home |
+| Raspberry Pi 4 (8 GB) | ~€60 one-time | Budget floor for the full stack; the Advisor just runs slower |
+
+**Sizing.** Everything but the Advisor fits in ~1 GB; **Ollama** (the local LLM) is the one heavy piece (~3–4 GB while generating). So:
+
+- **Full stack incl. Advisor:** Raspberry Pi 5 (8 GB) recommended; Pi 4 (8 GB) is the practical floor (LLM is slow but runs async, so it never blocks routing). On 4 GB, use a tiny model (`llama3.2:1b`) or offload Ollama to another machine via `OLLAMA_URL`.
+- **Without the Advisor:** 2 GB is plenty. You lose only AI *suggestions* — the gatekeeping (Council + Decrees) doesn't use the LLM.
+- **Always:** 64-bit OS (arm64 — all images are arm64; no Pi Zero/1/2/3), and **run from an SSD/NVMe, not an SD card** — Synapse + SQLite write often enough to kill SD cards.
+
+**SMS radio for gammu (USB modem vs. GSM HAT).** For a permanent Pi appliance a **GSM/LTE HAT is the better choice** than a USB dongle: it's integrated (nothing to knock loose), has a proper antenna connector, and is tidier. Caveats worth planning for:
+
+- **Prefer a 4G LTE HAT** (e.g. SIM7600-based) over 2G-only modules (SIM800/900) — 2G/3G networks are being shut down in many countries; SMS-over-LTE keeps working. Check whether your carrier still runs 2G before buying a 2G board.
+- **Power:** cellular radios draw large current bursts on transmit. Use a strong PSU (the Pi 5 27 W supply) and, if the HAT has a dedicated power input, feed it — under-powering causes random resets mid-send.
+- **Connection:** HATs present either as a UART on the GPIO header (`/dev/ttyS0`/`/dev/ttyAMA0`, enable the serial port + free it from the login console) or as USB (`/dev/ttyUSB*`). gammu handles both.
+- **Docker:** pass the device into the `core` container (e.g. `devices: ["/dev/ttyUSB2:/dev/ttyUSB2"]`) and point `GAMMU_CONFIG_PATH` at a gammu config for it.
 
 ### Common operations
 

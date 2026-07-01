@@ -33,7 +33,8 @@
       "WebSearch",
       "WebFetch(domain:sms-gateway-api-simpapp.web.app)",
       "WebFetch(domain:play.google.com)",
-      "WebFetch(domain:smsforward.app)"
+      "WebFetch(domain:smsforward.app)",
+      "Bash(grep -nE \"^#{1,3} \" README.md)"
     ]
   }
 }
