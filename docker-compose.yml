@@ -58,8 +58,12 @@ services:
       - CORE_INGEST_URL=http://core:8000/ingest
     volumes:
       - connector_data:/data
+      # TLS cert for the capcom6 inbound webhook (HTTPS). Optional — the HTTPS
+      # listener only starts if these files exist. See docs/WHATSAPP_SETUP.md / README.
+      - ./certs:/certs:ro
     ports:
       - "4000:3000"
+      - "4443:3443"   # HTTPS webhook (capcom6 sms:received)
     depends_on:
       core:
         condition: service_healthy

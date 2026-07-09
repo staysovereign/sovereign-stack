@@ -72,3 +72,6 @@ desktop.ini
 # ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
 logs/
+
+# capcom6 webhook TLS cert (private key — never commit)
+/certs/

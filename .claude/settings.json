@@ -34,7 +34,10 @@
       "WebFetch(domain:sms-gateway-api-simpapp.web.app)",
       "WebFetch(domain:play.google.com)",
       "WebFetch(domain:smsforward.app)",
-      "Bash(grep -nE \"^#{1,3} \" README.md)"
+      "Bash(grep -nE \"^#{1,3} \" README.md)",
+      "Bash(break)",
+      "WebFetch(domain:docs.sms-gate.app)",
+      "Bash(chmod 644 certs/webhook.crt certs/webhook.key)"
     ]
   }
 }

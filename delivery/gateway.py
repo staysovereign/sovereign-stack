@@ -213,16 +213,18 @@ async def _send_infinireach(body: str) -> SendResult:
 # where carriers block foreign A2P routes — and Sovereign reaches it over your
 # LAN. No public URL or tunnel needed.
 #
-# Contract: Sovereign POSTs JSON {"phone": <e164>, "message": <text>} to the
-# exact ANDROID_SMS_GATEWAY_URL you configure (the full send endpoint, e.g.
-# http://192.168.1.50:8080/send-sms), and treats a 2xx without {"success": false}
-# as sent. Any app exposing that shape works.
+# Targets capcom6 "SMS Gateway for Android" (github.com/capcom6/android-sms-gateway),
+# the reference app — it also supports inbound webhooks (received SMS → connectors
+# /android/webhook), which the send-only apps don't. Contract: Sovereign POSTs
+# JSON {"message": <text>, "phoneNumbers": [<e164>]} to <URL>/message with HTTP
+# Basic auth, and treats any 2xx (capcom6 returns 202 Accepted) as sent.
 #
 # To enable:
-#   1. Install such an app on a phone with a working SIM; enable its local server.
+#   1. Install capcom6 on a phone with a working SIM; open Local server, start it.
 #   2. Put the phone on the same network as this host.
-#   3. Set ANDROID_SMS_GATEWAY_URL to its send endpoint and, if the app requires
-#      auth, ANDROID_SMS_GATEWAY_USER / ANDROID_SMS_GATEWAY_PASS.
+#   3. Copy the Local-server credentials EXACTLY into ANDROID_SMS_GATEWAY_USER /
+#      ANDROID_SMS_GATEWAY_PASS, and set ANDROID_SMS_GATEWAY_URL to the shown
+#      base URL (e.g. http://192.168.1.50:8080 — /message is appended for you).
 #   4. Set SMS_GATEWAY=android (or leave it to auto-detection).
 
 def _android_configured() -> bool:
@@ -232,12 +234,12 @@ def _android_configured() -> bool:
 async def _send_android(body: str) -> SendResult:
     import httpx
 
-    # POST to the exact URL with {"phone": ..., "message": ...} — the contract
-    # common Android SMS-gateway apps expose. Optional HTTP Basic auth.
-    url = os.environ["ANDROID_SMS_GATEWAY_URL"]
+    # capcom6 exposes POST /message; append it if the configured URL is a bare base.
+    base = os.environ["ANDROID_SMS_GATEWAY_URL"].rstrip("/")
+    url = base if base.endswith("/message") else base + "/message"
     user = os.environ.get("ANDROID_SMS_GATEWAY_USER", "")
     password = os.environ.get("ANDROID_SMS_GATEWAY_PASS", "")
-    payload = {"phone": DUMB_PHONE, "message": body}
+    payload = {"message": body, "phoneNumbers": [DUMB_PHONE]}
     auth = (user, password) if (user or password) else None
 
     try:
@@ -247,22 +249,17 @@ async def _send_android(body: str) -> SendResult:
         # Empty/opaque exception strings (e.g. ConnectError) are unhelpful, so
         # include the type and the target URL — almost always "phone unreachable".
         detail = f"{type(exc).__name__}: {exc}".strip().rstrip(":").strip()
-        log.error("Android gateway send failed — is the gateway phone reachable at %s? (%s)", url, detail)
+        log.error("Android gateway send failed — is the gateway phone reachable at %s? (%s)", base, detail)
         return SendResult(success=False, gateway="android", error=detail)
 
-    data = {}
-    try:
-        data = resp.json()
-    except Exception:
-        pass
-
-    if resp.is_success and data.get("success") is not False:
+    if resp.is_success:  # capcom6 → 202 Accepted
         log.info("SMS sent via Android gateway (HTTP %s)", resp.status_code)
         return SendResult(success=True, gateway="android")
 
-    detail = (data.get("error") if isinstance(data, dict) else None) or resp.text[:200]
-    log.error("Android gateway send failed: HTTP %s %s", resp.status_code, detail)
-    return SendResult(success=False, gateway="android", error=f"HTTP {resp.status_code}: {detail}")
+    hint = " — check the Local-server username/password in the capcom6 app" if resp.status_code == 401 else ""
+    detail = (resp.text[:200].strip() or resp.reason_phrase)
+    log.error("Android gateway send failed: HTTP %s %s%s", resp.status_code, detail, hint)
+    return SendResult(success=False, gateway="android", error=f"HTTP {resp.status_code}: {detail}{hint}")
 
 
 # ── Gammu (USB GSM modem) ──────────────────────────────────────────────────────
