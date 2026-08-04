@@ -130,11 +130,14 @@ services:
     networks:
       - sovereign
 
-  # ── mautrix-meta (Matrix ↔ Instagram / Messenger bridge) ─────────
-  # Configured for Instagram (mode: instagram). See docs/WHATSAPP_SETUP.md
-  # for the bridgev2 setup pattern; same flow, distinct appservice port (29319).
+  # ── mautrix-meta (Matrix ↔ Instagram bridge) ──────────────────────
+  # The mainline `:latest` tag dropped Instagram support. `ig-latest` is
+  # mautrix's separately maintained Instagram-only build of the same
+  # codebase (dock.mau.dev/mautrix/meta, tags prefixed "ig-"). See
+  # docs/WHATSAPP_SETUP.md for the bridgev2 setup pattern; distinct
+  # appservice port (29319).
   mautrix-meta:
-    image: dock.mau.dev/mautrix/meta:latest
+    image: dock.mau.dev/mautrix/meta:ig-latest
     profiles: [whatsapp]
     volumes:
       - ./mautrix-meta:/data

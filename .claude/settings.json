@@ -37,7 +37,8 @@
       "Bash(grep -nE \"^#{1,3} \" README.md)",
       "Bash(break)",
       "WebFetch(domain:docs.sms-gate.app)",
-      "Bash(chmod 644 certs/webhook.crt certs/webhook.key)"
+      "Bash(chmod 644 certs/webhook.crt certs/webhook.key)",
+      "Bash(docker-compose version *)"
     ]
   }
 }

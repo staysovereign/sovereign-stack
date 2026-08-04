@@ -1,0 +1,14 @@
+id: meta
+url: http://mautrix-meta:29319
+as_token: xMX37O46Jz6mEnSq7S3zDd3Ge65hzTv5YjnfNTunWFzzZPREOQbbHC54DNUOdL6a
+hs_token: 2O1MpK9TAKLxEQ40d1UELNYIXSkvsCMdgpYbw9aysMXScqHe5WPyY5D4TWMlg7Db
+sender_localpart: KjOJhHYY4CG9mAxwYAgpd9cNS3PMDJfI
+rate_limited: false
+namespaces:
+    users:
+        - regex: ^@metabot:sovereign\.local$
+          exclusive: true
+        - regex: ^@meta_.*:sovereign\.local$
+          exclusive: true
+de.sorunome.msc2409.push_ephemeral: true
+receive_ephemeral: true

@@ -215,16 +215,21 @@ The connector logs `Matrix sync starting` and will `joined portal room …` as y
 | Connector idle / not forwarding | `MATRIX_ACCESS_TOKEN` not set in `.env` (Step 7), or you started without `--profile whatsapp`. |
 | Nothing happens on the first message to a new contact | Expected — send a second message (portal-creation timing). |
 | You get pinged by messages **you** sent | Add your account id to `BRIDGE_SELF_IDS` (Step 9) and restart the connector. |
+| Bridge loops `M_FORBIDDEN: Application service has not registered this user (@whatsappbot:...)` / `(@metabot:...)` every ~10s after a **fresh** registration + Synapse restart, even though the as_token and namespace regex are correct | Synapse requires an AS to explicitly `POST /_matrix/client/v3/register` (type `m.login.application_service`) for a ghost user before it can masquerade as them — Synapse never auto-vivifies AS namespace users on the fly (`synapse/api/auth/base.py`: `validate_appservice_can_control_user_id` checks `store.get_user_by_id(user_id)` and 403s if absent). Unblock the bot account with one manual call: `docker compose exec -T synapse curl -s -XPOST http://localhost:8008/_matrix/client/v3/register -H 'Authorization: Bearer <as_token from registration.yaml>' -H 'Content-Type: application/json' -d '{"type":"m.login.application_service","username":"whatsappbot"}'` (swap `whatsappbot`/token for `metabot` and the meta registration's as_token for the Instagram bridge). |
+| Real messages arrive at the bridge (visible in `docker compose logs mautrix`) but never reach Sovereign — repeated `M_FORBIDDEN: Application service has not registered this user (@whatsapp_<number>:...)` / `(@meta_<id>:...)` for **many different** ghost users, not just the bot | This happens when `./mautrix/mautrix-whatsapp.db` or `./mautrix-meta/mautrix-meta.db` is **reused from a previous deployment** pointed at a *different* Synapse (e.g. this stack restored on new infrastructure with a fresh `synapse_data` volume but old bridge DBs). The bridge caches "already registered" ghost MXIDs in its own `mx_registrations` table and skips the required `/register` call for any of them — even though the *new* Synapse has never seen them. Fix: clear the stale cache so the bridge re-registers everyone against the current homeserver, then restart the bridge: `docker compose exec mautrix sqlite3 /data/mautrix-whatsapp.db 'DELETE FROM mx_registrations;'` (and the same for `mautrix-meta` / `mautrix-meta.db`), then `docker compose restart mautrix mautrix-meta`. Safe — this table is pure bookkeeping, not chat history or the WhatsApp/Instagram login session. |
+| After the `mx_registrations` fix above, ghosts register fine but sends still 403 with `User @whatsapp_<number>:... not in room !<id>:sovereign.local` | Second layer of the same restored-deployment problem: each bridge's `portal` table also caches the **Matrix room ID** per chat from the old Synapse. The ghost is now registered, but was never actually joined to that *specific* stale room under the new Synapse. Fix: clear the cached room mapping so the bridge recreates each portal fresh on next activity — `docker compose exec mautrix sqlite3 /data/mautrix-whatsapp.db "UPDATE portal SET mxid = NULL WHERE mxid IS NOT NULL;"` (and the same for `mautrix-meta`), then `docker compose restart mautrix mautrix-meta`. Portals recreate lazily, one chat at a time, only once that chat gets new activity — expect existing conversations to "come back online" gradually rather than all at once. Doesn't touch chat content or the login session. |
 
 ---
 
 ## Adding Instagram (mautrix-meta)
 
-Instagram uses **mautrix-meta** (the bridge that replaced mautrix-instagram / mautrix-facebook). It reuses the **same Synapse** and the **same Sovereign connector** as WhatsApp — you're just adding a second bridge. Do this after WhatsApp is working.
+Instagram uses **mautrix-meta**. It reuses the **same Synapse** and the **same Sovereign connector** as WhatsApp — you're just adding a second bridge. Do this after WhatsApp is working.
+
+> ⚠️ **Image tag matters.** `dock.mau.dev/mautrix/meta:latest` (mainline) **dropped Instagram support** — it now identifies as `mautrix-facebook` and rejects `mode: instagram` at startup with `"instagram is no longer supported in this bridge"`. Instagram lives on a **separately maintained, actively built** tag on the same registry: `dock.mau.dev/mautrix/meta:ig-latest` (self-identifies as `mautrix-instagram`; no `mode` field needed since it's Instagram-only). `docker-compose.yml`'s `mautrix-meta` service is pinned to `ig-latest` for this reason — don't change it back to `:latest` or Instagram breaks again. If `ig-latest` ever disappears too, check `https://mau.dev/api/v4/projects/324/registry/repositories/98/tags?per_page=100` for current `ig-*` tags before giving up on Instagram entirely.
 
 > ⚠️ **Risk:** mautrix-meta logs into Instagram with your **session cookies** via Instagram's unofficial API. Instagram can challenge or disable the account; there's no official API for personal DMs. Enable 2FA on the account to reduce blocks.
 
-The `mautrix-meta` service is already defined in `docker-compose.yml` (Instagram mode, appservice port **29319**, bound to `./mautrix-meta`).
+The `mautrix-meta` service is already defined in `docker-compose.yml` (`ig-latest` image, appservice port **29319**, bound to `./mautrix-meta`).
 
 ### 1. Generate and configure the bridge config
 
@@ -233,12 +238,9 @@ docker compose --profile whatsapp run --rm mautrix-meta          # writes ./maut
 docker compose --profile whatsapp run --rm --user root --entrypoint chown mautrix-meta -R "$(id -u):$(id -g)" /data
 ```
 
-Edit `./mautrix-meta/config.yaml`:
+Edit `./mautrix-meta/config.yaml`. The `ig-latest` build defaults to `appservice.id: instagram`, bot username `instagrambot`, and `username_template: instagram_{{.}}` — **override all three to `meta`/`metabot`/`meta_{{.}}`**, because the Sovereign connector (`connectors/whatsapp/index.js`) hardcodes matching on the `@meta_*` prefix, not `@instagram_*`:
 
 ```yaml
-network:
-    mode: instagram                         # connect to Instagram DMs
-
 database:
     type: sqlite3-fk-wal
     uri: file:/data/mautrix-meta.db?_txlock=immediate
@@ -252,9 +254,19 @@ appservice:
     hostname: 0.0.0.0
     port: 29319
 
+    # Override the ig-latest defaults (id: instagram / instagrambot) so ghost
+    # users come out as @meta_* — that's what the connector matches on.
+    id: meta
+    bot:
+        username: metabot
+
     permissions:
         "sovereign.local": user
         "@sovereign:sovereign.local": admin
+
+bridge:
+    # Also under `bridge:` further down in the generated file.
+    username_template: meta_{{.}}
 ```
 
 ### 2. Generate the registration & wire it into Synapse
@@ -312,6 +324,7 @@ A `"type":"complete"` response means you're logged in. (Alternative: log into Sy
 No connector changes are needed — the Sovereign connector already forwards Instagram (`@meta_*`) puppets and routes replies back, exactly like WhatsApp. Start everything with `docker compose --profile whatsapp up -d` and Instagram DMs flow into the Vault / Decrees / Council like every other platform.
 
 **Notes:**
+- If `./mautrix-meta/mautrix-meta.db` already holds a previously-logged-in session (e.g. restoring this stack on new infrastructure, same host files but a fresh Synapse volume), the bridge may **reconnect that old session automatically** on startup — check `state_event` via the `whoami` provisioning endpoint before assuming you need to redo the cookie login in Step 3.
 - **Add your Instagram id to `BRIDGE_SELF_IDS`** (the numeric id from the login line, e.g. `17842237635275588`) alongside your WhatsApp number, so DMs *you* send don't ping your own phone. Restart the connector afterward.
 - Instagram contacts have **no phone number**, so to add one to your **Council** match by their bridge id (`@meta_…`) rather than a phone — easiest after they've messaged you once (you'll see them in the Chronicle).
 - `cannot change members for DM` lines in the mautrix-meta log are harmless (logged when `@sovereign` joins a DM portal).

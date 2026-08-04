@@ -1,7 +1,35 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(rustc --version 2>&1)"
+      "PowerShell(rustc --version 2>&1)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker info *)",
+      "Bash(systemctl is-active *)",
+      "Read(//run/**)",
+      "Bash(sg docker *)",
+      "Bash(curl -sS -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost/)",
+      "Bash(curl -sS -o /dev/null -w \"core health: HTTP %{http_code}\\\\n\" http://localhost:8000/health)",
+      "Bash(curl -sS http://localhost/)",
+      "Bash(cd /home/zerohashcrbn/Documentos/dev/sovereign-stack *)",
+      "Bash(chmod 644 mautrix/registration.yaml)",
+      "Bash(xxd)",
+      "Bash(python3 -c ' *)",
+      "Bash(pip install *)",
+      "Bash(sudo apt-get install -y python3-yaml)",
+      "Bash(sg docker -c 'docker compose exec synapse python3 -c \" *)",
+      "Bash(chmod 644 mautrix-meta/registration.yaml)",
+      "Bash(curl -s \"https://mau.dev/api/v4/projects/mautrix%2Fmeta/registry/repositories\")",
+      "Bash(curl -s \"https://dock.mau.dev/v2/mautrix/meta/tags/list\")",
+      "Bash(curl -s \"https://mau.dev/api/v4/projects/324/registry/repositories/98/tags?per_page=100\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(grep -n \"mode:\\\\|^network:\\\\|Available options\" /tmp/ig-test-config.yaml | head -10 *)",
+      "Read(//tmp/**)",
+      "Bash(grep -viE \"^\\\\s*$|DBG.*whatsmeow.*Recv.*presence|DBG.*whatsmeow.*Send.*presence\")",
+      "Bash(grep -n \"^  [a-z_-]*:$\" /home/zerohashcrbn/Documentos/dev/sovereign-stack/docker-compose.yml)"
+    ],
+    "additionalDirectories": [
+      "/home/zerohashcrbn/Documentos/dev/sovereign-stack/mautrix"
     ]
   }
 }
