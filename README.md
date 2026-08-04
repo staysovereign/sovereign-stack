@@ -177,6 +177,12 @@ Sovereign POSTs `{"message": "<text>", "phoneNumbers": ["<dumb-phone>"]}` to `<u
 
 > **Keep the gateway phone reachable.** Because it runs over your LAN, the phone must be awake and on the network when an urgent SMS fires — keep it on power and exempt the app from battery optimization. If it's briefly unreachable a send fails, but the message is never lost: it falls back to the Vault.
 
+> **`202 Accepted` means "queued on the phone," not "sent."** Sovereign marks a message delivered the moment capcom6's HTTP server accepts the request — actual SMS transmission then happens asynchronously *on the phone*, outside Sovereign's visibility. If notifications feel delayed or arrive in a sudden batch (e.g. several WhatsApp messages all landing on the dumb phone together, seemingly triggered by an unrelated later message), the pipeline itself isn't the bottleneck — check `docker compose logs core | grep 'SMS sent'` timestamps against `delivery_log.sent_at` first to confirm Sovereign's side is instant (it almost always is), then look at the gateway phone itself:
+> - **Battery optimization** exempted for capcom6 specifically (not just "keep awake" generally) — Android's Doze mode throttles background SMS sending even when the HTTP server stays reachable.
+> - capcom6 should run as a **foreground service with a persistent notification** — if that notification isn't showing, Android may be killing/throttling it in the background.
+> - Phone **screen-off idle time**: some OEM battery managers (Xiaomi/MIUI, Samsung, Huawei) apply extra restrictions beyond stock Android — check the vendor's own battery/autostart settings for the app in addition to the standard Android setting.
+> - capcom6 keeps its **own send log/history** in-app — compare its actual transmission timestamps against Sovereign's `delivery_log.sent_at` to confirm whether the delay is really on the phone.
+
 *Inbound replies (dumb phone → original chat).* capcom6 (unlike send-only apps) can **forward received SMS to a webhook**, which is what routes your dumb-phone reply back to WhatsApp/Instagram/etc. In capcom6, add a webhook for the **`sms:received`** event pointing at Sovereign:
 
 ```
