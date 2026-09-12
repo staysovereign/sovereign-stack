@@ -183,11 +183,21 @@ Sovereign POSTs `{"message": "<text>", "phoneNumbers": ["<dumb-phone>"]}` to `<u
 > - Phone **screen-off idle time**: some OEM battery managers (Xiaomi/MIUI, Samsung, Huawei) apply extra restrictions beyond stock Android — check the vendor's own battery/autostart settings for the app in addition to the standard Android setting.
 > - capcom6 keeps its **own send log/history** in-app — compare its actual transmission timestamps against Sovereign's `delivery_log.sent_at` to confirm whether the delay is really on the phone.
 
-*Inbound replies (dumb phone → original chat).* capcom6 (unlike send-only apps) can **forward received SMS to a webhook**, which is what routes your dumb-phone reply back to WhatsApp/Instagram/etc. In capcom6, add a webhook for the **`sms:received`** event pointing at Sovereign:
+*Inbound replies (dumb phone → original chat).* capcom6 (unlike send-only apps) can **forward received SMS to a webhook**, which is what routes your dumb-phone reply back to WhatsApp/Instagram/etc. capcom6 only calls **`https://`** webhook URLs (or `127.0.0.1`) — it will not call plain `http://`, and fails silently if you configure one.
 
+In **Local server** mode the app's Webhooks screen has no add form — webhooks are registered via a REST call to the device instead, using the same Local-server credentials from your `.env`:
+
+```bash
+curl -X POST \
+  -u "$ANDROID_SMS_GATEWAY_USER:$ANDROID_SMS_GATEWAY_PASS" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://<this-host-lan-ip>:4443/android/webhook", "event": "sms:received"}' \
+  http://<phone-ip>:8080/webhooks
 ```
-POST  http://<this-host-lan-ip>:4000/android/webhook
-```
+
+Note: this is `/webhooks`, not the `/3rdparty/v1/webhooks` path used for **cloud** mode — the cloud path 404s on a local-mode device. `GET` the same URL to list registered webhooks and confirm it stuck (expect `201` on POST, with the new webhook's `id`/`url`/`event` echoed back).
+
+This requires Sovereign's HTTPS listener to be up: a TLS cert/key must be present at `./certs/webhook.crt` / `./certs/webhook.key` (mounted read-only into the `connectors` container), with CN/SAN matching `<this-host-lan-ip>`. If those files are missing, `docker compose logs connectors` will show `no webhook TLS cert found — HTTPS webhook listener disabled` and capcom6's replies will never arrive (no error either side — just silence). Override the cert paths with `WEBHOOK_TLS_CERT` / `WEBHOOK_TLS_KEY`, and the listening port with `CONNECTORS_TLS_PORT`, if needed.
 
 Sovereign parses capcom6's payload automatically (sender from `phoneNumber`, text from `message`; it also accepts `from`/`sender`/`text`/`body` from other forwarders). A text from the dumb phone is routed to `/reply` (sent back to the original chat); anything else is ingested as an inbound SMS. Optionally set `ANDROID_SMS_GATEWAY_WEBHOOK_SECRET` and append `?secret=…` to the URL. No public tunnel needed — both phone and host are on your LAN.
 
