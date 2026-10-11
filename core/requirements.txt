@@ -6,3 +6,4 @@ twilio==9.10.9
 tzdata==2026.2
 httpx==0.28.1
 aiosmtplib==5.1.2
+anthropic==0.125.0

@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 
 import aiosqlite
 
+from advisor.ollama import generate as ollama_generate
 from core.db import get_db, get_setting
+from reply import claude
 from reply.parser import CommandType, ParsedCommand, parse
 from reply.sender import send_reply
 from reply.session import get_active_session, get_session_by_index, get_session_by_name, mark_used
@@ -32,6 +34,12 @@ async def _dispatch(cmd: ParsedCommand, db: aiosqlite.Connection) -> str:
 
     if cmd.type == CommandType.READ:
         return await _cmd_read(cmd.index, db)
+
+    if cmd.type == CommandType.ASK:
+        return await _cmd_ask(cmd.text)
+
+    if cmd.type == CommandType.ASK_WORLD:
+        return await _cmd_ask_world(cmd.text)
 
     if cmd.type == CommandType.REPLY_LATEST:
         return await _cmd_reply_session(await get_active_session(db), cmd.text, db)
@@ -180,3 +188,41 @@ async def _cmd_read(index: int | None, db: aiosqlite.Connection) -> str:
     body = msg["content"].get("body") or "[media — no text content]"
 
     return f"[{tag}] {name} • {ts}\n{body}"
+
+
+async def _cmd_ask(question: str | None) -> str:
+    if not question:
+        return "SOVEREIGN: Usage: ask <question>"
+
+    prompt = (
+        "You are a helpful assistant reachable only by SMS, a medium with a hard "
+        "120-character limit. Answer in under 100 characters — as short as possible, "
+        "no preamble, no markdown, one sentence if at all possible.\n\n"
+        f"Question: {question}"
+    )
+    answer = await ollama_generate(prompt)
+    if not answer:
+        return "SOVEREIGN: AI agent unavailable right now."
+
+    return answer[:120]
+
+
+async def _cmd_ask_world(question: str | None) -> str:
+    if not question:
+        return "SOVEREIGN: Usage: world <question>"
+
+    if not await claude.available():
+        return "SOVEREIGN: 'world' needs ANTHROPIC_API_KEY set — not configured."
+
+    prompt = (
+        "You are a helpful assistant reachable only by SMS, a medium with a hard "
+        "120-character limit. Use web search if the question needs current "
+        "information. Answer in under 100 characters — as short as possible, "
+        "no preamble, no markdown, one sentence if at all possible.\n\n"
+        f"Question: {question}"
+    )
+    answer = await claude.generate(prompt)
+    if not answer:
+        return "SOVEREIGN: Claude unavailable right now."
+
+    return answer[:120]

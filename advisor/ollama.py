@@ -26,9 +26,12 @@ async def generate(prompt: str) -> str | None:
     Send a prompt to the local Ollama instance and return the response text.
     Returns None if Ollama is unreachable.
 
-    Privacy contract: this function MUST only be called with anonymized,
-    statistical summaries — never with message content, sender names,
-    or any data that could identify a conversation.
+    Privacy contract: for automatic/background callers (e.g. suggest_decrees,
+    which runs unattended over behavioral stats) the prompt MUST be anonymized
+    — never message content, sender names, or anything identifying a
+    conversation. This doesn't apply to a direct, user-initiated prompt (e.g.
+    the SMS "ask" command) where the user is knowingly sending their own text
+    to their own local model.
     """
     try:
         async with httpx.AsyncClient(timeout=30) as client:

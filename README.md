@@ -228,9 +228,13 @@ r 2 On my way                   → reply to 2nd most recent message
 list                            → see recent held messages
 read 3                          → read full content of message #3
 status                          → vault summary
+ask How many ml in a cup?       → ask the local AI agent (Ollama) — experimental
+world directions to the airport → ask Claude instead, with live web search — experimental, opt-in
 ```
 
 Sovereign sends a confirmation SMS back after each command.
+
+`ask` stays fully local and offline (same Ollama model as the Advisor) — it answers from training data only, so it can be wrong about anything current. `world` is a separate, explicit opt-in: it sends your question to the Claude API (cloud, costs money per request) and is disabled unless you set `ANTHROPIC_API_KEY` in `.env`.
 
 ---
 

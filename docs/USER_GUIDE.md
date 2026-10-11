@@ -287,8 +287,12 @@ After the window, or to do more, use these short commands (just text them to Sov
 | `list` | See a numbered list of recent held messages |
 | `read 3` | Read the full text of message **#3** |
 | `status` | Get a quick summary of your Vault |
+| `ask <question>` | *(experimental)* Ask Sovereign's local AI agent anything — answered by the same on-device model as the Advisor, no internet required |
+| `world <question>` | *(experimental, opt-in)* Ask Claude instead, with live web search — for anything `ask` can't know (directions, current events, business hours) |
 
 Sovereign texts back a short confirmation after each command, so you always know it worked.
+
+> **`ask` vs. `world`.** `ask` stays fully local (Ollama) and answers from the model's own training data only — no live lookups, so anything needing current information may come back wrong or outdated. `world` is a separate, explicit opt-in: your question leaves this machine and goes to the Claude API (with web search), which costs money per request and requires `ANTHROPIC_API_KEY` to be set. If it's unset, `world` just tells you so and does nothing — `ask` is unaffected either way.
 
 ---
 

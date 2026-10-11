@@ -13,6 +13,8 @@ class CommandType(str, Enum):
     LIST         = "list"            # list
     READ         = "read"            # read N
     STATUS       = "status"          # status
+    ASK          = "ask"             # ask [question]  — ask the local AI agent (Ollama)
+    ASK_WORLD    = "ask_world"       # world [question]  — ask Claude (cloud, opt-in)
 
 
 @dataclass
@@ -36,6 +38,17 @@ def parse(raw: str) -> ParsedCommand:
     m = re.match(r"^read\s+(\d+)$", s, re.IGNORECASE)
     if m:
         return ParsedCommand(type=CommandType.READ, index=int(m.group(1)))
+
+    # ask [question]  — local AI agent (Ollama)
+    m = re.match(r"^ask\s+(.+)$", s, re.IGNORECASE)
+    if m:
+        return ParsedCommand(type=CommandType.ASK, text=m.group(1))
+
+    # world [question]  — explicit opt-in to Claude (cloud), for questions
+    # that need live/current information Ollama's offline model can't have.
+    m = re.match(r"^world\s+(.+)$", s, re.IGNORECASE)
+    if m:
+        return ParsedCommand(type=CommandType.ASK_WORLD, text=m.group(1))
 
     # r N [text]
     m = re.match(r"^r\s+(\d+)\s+(.+)$", s, re.IGNORECASE)
