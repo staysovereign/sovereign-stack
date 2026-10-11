@@ -201,6 +201,36 @@ This requires Sovereign's HTTPS listener to be up: a TLS cert/key must be presen
 
 Sovereign parses capcom6's payload automatically (sender from `phoneNumber`, text from `message`; it also accepts `from`/`sender`/`text`/`body` from other forwarders). A text from the dumb phone is routed to `/reply` (sent back to the original chat); anything else is ingested as an inbound SMS. Optionally set `ANDROID_SMS_GATEWAY_WEBHOOK_SECRET` and append `?secret=…` to the URL. No public tunnel needed — both phone and host are on your LAN.
 
+### Experimental AI SMS commands
+
+Two extra SMS commands, `ask` and `world` (full syntax in [SMS command reference](#sms-command-reference) below), let you text a question — or, for `world`, an action — from the dumb phone and get an AI answer back. Not merged to `development` yet; still rough around the edges (see **Known limitations** below).
+
+**`ask` — local, offline, free.** Answered by the same Ollama model the Advisor uses (`OLLAMA_URL`/`OLLAMA_MODEL`, in `.env.example` under "The Advisor"). Nothing leaves the machine. No extra config needed beyond what the Advisor already requires.
+
+`ask` is also *grounded* in your own recent Sovereign activity — `reply/context.py` feeds it a summary of recent deliveries (`reply_sessions`) and what's currently held in the Vault, so "who messaged me last" or similar can work. This context never goes anywhere near `world`/Claude — see the privacy note below.
+
+**`world` — cloud, opt-in, costs money per request.** Calls the Claude API with web search, for anything needing live/current information `ask` can't have (directions, business hours, current events). Disabled unless `ANTHROPIC_API_KEY` is set:
+
+```env
+ANTHROPIC_API_KEY=sk-ant-...
+# CLAUDE_MODEL=claude-haiku-5-5   # default; cheapest tier, tuned for short SMS lookups
+```
+
+`world` is tuned for low cost: `claude-haiku-5-5` by default, thinking effort `low`, the basic (non-dynamic-filtering) web search tool capped at one search per request, and a 512-token response cap. Override `CLAUDE_MODEL` only if you've measured that answers actually need a bigger model.
+
+**`world` can take actions, not just answer** — via Claude tool use (`reply/actions.py`):
+- `world remind me in 1h to call mama` → schedules a real SMS reminder (`reminders` table, drained by a background loop on `reply/reminders.py`, same polling pattern as the quiet-hours drain in `delivery/worker.py`).
+- `world add Simon to the council` → promotes a contact to VIP (the Council) — only works for contacts who've sent at least one urgent message before, since it looks them up by fuzzy name match against `reply_sessions`.
+
+**Follow-up memory.** Both commands remember the last exchange for 5 minutes (`ai_followup` table) — a quick follow-up SMS like "and Germany?" reuses the prior question/answer instead of needing it restated.
+
+**Privacy boundary.** `ask`'s grounding context (your message activity) is deliberately *not* sent to `world`/Claude — only the question text itself crosses to the cloud. Extending grounding to `world` would mean sending real message content/sender names to Anthropic; that's a real design tradeoff, not an oversight, and hasn't been made.
+
+**Known limitations:**
+- The local model can pick the wrong entry out of the grounding context (small-model reasoning, not a data bug) — don't rely on `ask`'s answers about your own activity for anything that matters.
+- `add_to_council`'s dedup check catches exact/accent-only name variants (e.g. "mama" vs "Mamá") but not a contact already on the Council under a genuinely different nickname (e.g. phone-keyed "Mon" vs `reply_sessions`' "Simon" for the same person) — there's no shared identifier available from the SMS side to join on.
+- `ask`'s grounded prompt is long enough that CPU-bound local inference can take well past Ollama's default timeout — `advisor/ollama.py`'s `generate()` takes an optional `timeout` override for this (75s from the grounded call; unchanged default elsewhere).
+
 ---
 
 ## Default Decrees
@@ -229,12 +259,15 @@ list                            → see recent held messages
 read 3                          → read full content of message #3
 status                          → vault summary
 ask How many ml in a cup?       → ask the local AI agent (Ollama) — experimental
+ask who messaged me last?       → same, grounded in your own recent Sovereign activity — experimental
 world directions to the airport → ask Claude instead, with live web search — experimental, opt-in
+world remind me in 1h to call mama → schedule a real SMS reminder — experimental, opt-in
+world add Simon to the council  → promote a recent contact to VIP — experimental, opt-in
 ```
 
 Sovereign sends a confirmation SMS back after each command.
 
-`ask` stays fully local and offline (same Ollama model as the Advisor) — it answers from training data only, so it can be wrong about anything current. It's also grounded in your own recent Sovereign activity (recent delivered messages + what's held in the Vault), so "who messaged me last" or similar can work, though the small local model can still pick the wrong item from the list — it's not reliable for anything you'd act on. `world` is a separate, explicit opt-in: it sends your question to the Claude API (cloud, costs money per request, needs `ANTHROPIC_API_KEY`) and can also *act* — "remind me in 1h to call mama" schedules a real SMS reminder, "add Simon to the council" promotes a contact to VIP (only works for contacts who've messaged before). Both commands remember your last question for ~5 minutes, so a quick follow-up ("and Germany?") doesn't need to repeat context.
+`ask` (Ollama, local, free) and `world` (Claude, cloud, opt-in) are experimental — setup, cost tuning, the actions `world` can take, and known limitations are covered under [Experimental AI SMS commands](#experimental-ai-sms-commands) in Configuration above.
 
 ---
 
