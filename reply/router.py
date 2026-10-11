@@ -12,6 +12,7 @@ from reply.context import recent_activity_summary
 from reply.followup import get_followup, save_followup
 from reply.parser import CommandType, ParsedCommand, parse
 from reply.sender import send_reply
+from reply.sms_text import sanitize_for_sms
 from reply.session import get_active_session, get_session_by_index, get_session_by_name, mark_used
 
 log = logging.getLogger("sovereign.reply")
@@ -216,7 +217,7 @@ async def _cmd_ask(question: str | None, db: aiosqlite.Connection) -> str:
     if not answer:
         return "SOVEREIGN: AI agent unavailable right now."
 
-    answer = answer[:120]
+    answer = sanitize_for_sms(answer)[:120]
     await save_followup("ask", question, answer, db)
     return answer
 
@@ -242,10 +243,11 @@ async def _cmd_ask_world(question: str | None, db: aiosqlite.Connection) -> str:
         "as possible, no preamble, no markdown, one sentence if at all possible.\n\n"
         f"Question: {question}"
     )
-    answer = await claude.generate(prompt, history=history, db=db)
+    answer, action_taken = await claude.generate(prompt, history=history, db=db)
     if not answer:
         return "SOVEREIGN: Claude unavailable right now."
 
-    answer = answer[:120]
-    await save_followup("world", question, answer, db)
+    answer = sanitize_for_sms(answer)[:120]
+    if not action_taken:
+        await save_followup("world", question, answer, db)
     return answer
