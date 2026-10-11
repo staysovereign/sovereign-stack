@@ -222,7 +222,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 - `world remind me in 1h to call mama` → schedules a real SMS reminder (`reminders` table, drained by a background loop on `reply/reminders.py`, same polling pattern as the quiet-hours drain in `delivery/worker.py`).
 - `world add Simon to the council` → promotes a contact to VIP (the Council) — only works for contacts who've sent at least one urgent message before, since it looks them up by fuzzy name match against `reply_sessions`.
 
-**Follow-up memory.** Both commands remember the last exchange for 5 minutes (`ai_followup` table) — a quick follow-up SMS like "and Germany?" reuses the prior question/answer instead of needing it restated.
+**Follow-up memory.** Both commands remember the last exchange for 5 minutes (`ai_followup` table) — a quick follow-up SMS like "and Germany?" reuses the prior question/answer instead of needing it restated. An exchange where `world` took an action (set a reminder, added someone to the Council) is deliberately *not* remembered this way — a model replaying its own tool call as prior context is prone to reflexively firing it again on the next, unrelated question.
+
+**SMS encoding.** Replies are sanitized to plain ASCII (`reply/sms_text.py`) before sending — accents stripped, symbols like `°`/`—`/`…` replaced with ASCII equivalents — because a single non-GSM-7 character (e.g. a degree sign in a weather answer) forces the whole SMS into UCS-2 encoding, which fits far fewer characters per segment (~70 vs ~160) and can arrive truncated if the gateway doesn't concatenate multi-part messages cleanly. Trade-off: Spanish replies lose their accents (café → cafe).
 
 **Privacy boundary.** `ask`'s grounding context (your message activity) is deliberately *not* sent to `world`/Claude — only the question text itself crosses to the cloud. Extending grounding to `world` would mean sending real message content/sender names to Anthropic; that's a real design tradeoff, not an oversight, and hasn't been made.
 
