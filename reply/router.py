@@ -8,6 +8,8 @@ import aiosqlite
 from advisor.ollama import generate as ollama_generate
 from core.db import get_db, get_setting
 from reply import claude
+from reply.context import recent_activity_summary
+from reply.followup import get_followup, save_followup
 from reply.parser import CommandType, ParsedCommand, parse
 from reply.sender import send_reply
 from reply.session import get_active_session, get_session_by_index, get_session_by_name, mark_used
@@ -36,10 +38,10 @@ async def _dispatch(cmd: ParsedCommand, db: aiosqlite.Connection) -> str:
         return await _cmd_read(cmd.index, db)
 
     if cmd.type == CommandType.ASK:
-        return await _cmd_ask(cmd.text)
+        return await _cmd_ask(cmd.text, db)
 
     if cmd.type == CommandType.ASK_WORLD:
-        return await _cmd_ask_world(cmd.text)
+        return await _cmd_ask_world(cmd.text, db)
 
     if cmd.type == CommandType.REPLY_LATEST:
         return await _cmd_reply_session(await get_active_session(db), cmd.text, db)
@@ -190,39 +192,60 @@ async def _cmd_read(index: int | None, db: aiosqlite.Connection) -> str:
     return f"[{tag}] {name} • {ts}\n{body}"
 
 
-async def _cmd_ask(question: str | None) -> str:
+async def _cmd_ask(question: str | None, db: aiosqlite.Connection) -> str:
     if not question:
         return "SOVEREIGN: Usage: ask <question>"
+
+    followup = await get_followup("ask", db)
+    history_block = (
+        f"Previous question: {followup[0]}\nPrevious answer: {followup[1]}\n\n"
+        if followup else ""
+    )
+    context = await recent_activity_summary(db)
 
     prompt = (
         "You are a helpful assistant reachable only by SMS, a medium with a hard "
         "120-character limit. Answer in under 100 characters — as short as possible, "
         "no preamble, no markdown, one sentence if at all possible.\n\n"
+        f"{history_block}"
+        "The user's own Sovereign message activity, for reference if relevant "
+        f"to the question (don't list it unless asked):\n{context}\n\n"
         f"Question: {question}"
     )
-    answer = await ollama_generate(prompt)
+    answer = await ollama_generate(prompt, timeout=75)
     if not answer:
         return "SOVEREIGN: AI agent unavailable right now."
 
-    return answer[:120]
+    answer = answer[:120]
+    await save_followup("ask", question, answer, db)
+    return answer
 
 
-async def _cmd_ask_world(question: str | None) -> str:
+async def _cmd_ask_world(question: str | None, db: aiosqlite.Connection) -> str:
     if not question:
         return "SOVEREIGN: Usage: world <question>"
 
     if not await claude.available():
         return "SOVEREIGN: 'world' needs ANTHROPIC_API_KEY set — not configured."
 
+    followup = await get_followup("world", db)
+    history = (
+        [{"role": "user", "content": followup[0]}, {"role": "assistant", "content": followup[1]}]
+        if followup else None
+    )
+
     prompt = (
         "You are a helpful assistant reachable only by SMS, a medium with a hard "
         "120-character limit. Use web search if the question needs current "
-        "information. Answer in under 100 characters — as short as possible, "
-        "no preamble, no markdown, one sentence if at all possible.\n\n"
+        "information, or a tool if the user asks to be reminded of something or "
+        "wants a contact added as VIP. Answer in under 100 characters — as short "
+        "as possible, no preamble, no markdown, one sentence if at all possible.\n\n"
         f"Question: {question}"
     )
-    answer = await claude.generate(prompt)
+    answer = await claude.generate(prompt, history=history, db=db)
     if not answer:
         return "SOVEREIGN: Claude unavailable right now."
 
-    return answer[:120]
+    answer = answer[:120]
+    await save_followup("world", question, answer, db)
+    return answer

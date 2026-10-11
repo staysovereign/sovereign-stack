@@ -234,7 +234,7 @@ world directions to the airport → ask Claude instead, with live web search —
 
 Sovereign sends a confirmation SMS back after each command.
 
-`ask` stays fully local and offline (same Ollama model as the Advisor) — it answers from training data only, so it can be wrong about anything current. `world` is a separate, explicit opt-in: it sends your question to the Claude API (cloud, costs money per request) and is disabled unless you set `ANTHROPIC_API_KEY` in `.env`.
+`ask` stays fully local and offline (same Ollama model as the Advisor) — it answers from training data only, so it can be wrong about anything current. It's also grounded in your own recent Sovereign activity (recent delivered messages + what's held in the Vault), so "who messaged me last" or similar can work, though the small local model can still pick the wrong item from the list — it's not reliable for anything you'd act on. `world` is a separate, explicit opt-in: it sends your question to the Claude API (cloud, costs money per request, needs `ANTHROPIC_API_KEY`) and can also *act* — "remind me in 1h to call mama" schedules a real SMS reminder, "add Simon to the council" promotes a contact to VIP (only works for contacts who've messaged before). Both commands remember your last question for ~5 minutes, so a quick follow-up ("and Germany?") doesn't need to repeat context.
 
 ---
 

@@ -179,6 +179,31 @@ CREATE TABLE IF NOT EXISTS auth (
 )
 """
 
+# ── Experimental: ask/world SMS AI commands (reply/router.py) ─────────────────
+
+# One row per command ('ask' or 'world') holding the last exchange, so a
+# follow-up SMS sent soon after can reference it without restating context.
+_CREATE_AI_FOLLOWUP = """
+CREATE TABLE IF NOT EXISTS ai_followup (
+    command    TEXT PRIMARY KEY,
+    question   TEXT NOT NULL,
+    answer     TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)
+"""
+
+# Reminders created via the 'world' command's set_reminder tool. Drained by
+# reply/reminders.py, same polling pattern as delivery/worker.py's quiet-hours drain.
+_CREATE_REMINDERS = """
+CREATE TABLE IF NOT EXISTS reminders (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    text       TEXT NOT NULL,
+    due_at     TEXT NOT NULL,
+    sent       INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)
+"""
+
 # ── Default settings ──────────────────────────────────────────────────────────
 DEFAULT_SETTINGS = {
     "quiet_hours_enabled": "false",
@@ -229,6 +254,8 @@ async def init_db() -> None:
         await db.execute(_CREATE_ADVISOR_STATE)
         await db.execute(_CREATE_DELIVERY_HELD)
         await db.execute(_CREATE_AUTH)
+        await db.execute(_CREATE_AI_FOLLOWUP)
+        await db.execute(_CREATE_REMINDERS)
         await db.commit()
         await _migrate(db)
         await db.execute("INSERT OR IGNORE INTO auth (id) VALUES (1)")

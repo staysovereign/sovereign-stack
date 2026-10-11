@@ -292,7 +292,9 @@ After the window, or to do more, use these short commands (just text them to Sov
 
 Sovereign texts back a short confirmation after each command, so you always know it worked.
 
-> **`ask` vs. `world`.** `ask` stays fully local (Ollama) and answers from the model's own training data only — no live lookups, so anything needing current information may come back wrong or outdated. `world` is a separate, explicit opt-in: your question leaves this machine and goes to the Claude API (with web search), which costs money per request and requires `ANTHROPIC_API_KEY` to be set. If it's unset, `world` just tells you so and does nothing — `ask` is unaffected either way.
+> **`ask` vs. `world`.** `ask` stays fully local (Ollama) and answers from the model's own training data only — no live lookups, so anything needing current information may come back wrong or outdated. It can also reference your own recent Sovereign activity (recent deliveries, what's held in the Vault), but the small local model sometimes picks the wrong item from that list, so don't rely on it for anything that matters. `world` is a separate, explicit opt-in: your question leaves this machine and goes to the Claude API (with web search), which costs money per request and requires `ANTHROPIC_API_KEY` to be set. If it's unset, `world` just tells you so and does nothing — `ask` is unaffected either way.
+>
+> **`world` can also act, not just answer.** "remind me in 1h to call mama" schedules a real reminder SMS; "add Simon to the council" promotes a recent contact to VIP. Both `ask` and `world` remember your last exchange for about 5 minutes, so a quick follow-up like "and Germany?" works without repeating the question.
 
 ---
 

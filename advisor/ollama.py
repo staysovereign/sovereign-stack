@@ -21,7 +21,7 @@ async def available() -> bool:
         return False
 
 
-async def generate(prompt: str) -> str | None:
+async def generate(prompt: str, *, timeout: float = 30) -> str | None:
     """
     Send a prompt to the local Ollama instance and return the response text.
     Returns None if Ollama is unreachable.
@@ -32,9 +32,12 @@ async def generate(prompt: str) -> str | None:
     conversation. This doesn't apply to a direct, user-initiated prompt (e.g.
     the SMS "ask" command) where the user is knowingly sending their own text
     to their own local model.
+
+    `timeout` defaults to 30s; pass more for longer prompts (e.g. with extra
+    context stuffed in) — CPU-bound local inference slows down with input size.
     """
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             res = await client.post(
                 f"{OLLAMA_URL}/api/generate",
                 json={
