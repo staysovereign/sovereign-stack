@@ -52,7 +52,7 @@ If no tier claims urgency, the message waits in **The Vault** — held, never de
 ## Quick start
 
 ```bash
-git clone https://github.com/zerohashcrbn/sovereign-stack.git
+git clone https://github.com/staysovereign/sovereign-stack.git
 cd sovereign
 
 # First time only — generates secrets, checks prerequisites
